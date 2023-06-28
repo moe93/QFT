@@ -18,18 +18,23 @@ fontsize = 12;
 
 % Flags
 CNTR = 1;                                   % Figure handle counter
+PLOT = true;                                %#ok<NASGU> If true, plot figures!
+PLOT = false;                               % COMMENT OUT TO PRINT FIGURES
 PRNT = true;                                %#ok<NASGU>
 % PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
 
-% Plot line color/style
-c_line = [ 'r', 'g', 'b', 'c', 'm', 'k' ];
-C_line = [ c_line, c_line, c_line, c_line ];
-C_line = [ C_line, C_line, C_line, C_line ];
-
+%% Add folders/files to path
 % Get current path to working directory and split
 pathParts = strsplit( pwd, filesep );
 % Go up one level and generate new path
 src = fullfile( pathParts{1:end-1} );
+
+% If on a UNIX machine (i.e. macOS, Ubuntu, etc...), fix path since
+% strsplit() removes the leading '/' from the path.
+if( isunix )
+    src = [ filesep src ];
+end
+
 % Add QFT2 to path
 addpath( genpath(src) );
 
@@ -215,11 +220,21 @@ fprintf( ACK );
 
 % --- Plot bode diagram
 w = logspace( log10(0.001), log10(300), 1024);
-figure( CNTR ); CNTR = CNTR + 1;
 bode( P_0, w ); grid on;
-[p0, theta0] = bode( P_0, w );
 
-make_nice_plot();
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    bode( P_0, w ); grid on;
+    make_nice_plot();
+end
+
+% --- Plot root locus
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    rlocus( P_0 );
+    title('Root Locus of Plant (under Proportional Control)')
+    make_nice_plot();
+end
 
 %% Step 3: QFT Template
 
@@ -230,17 +245,23 @@ fprintf( '\tPlotting QFT templates...' );
 % --- Working frequencies
 w = [ 0.001 0.01 0.1 0.5 1 4 10 30 150 300 ];
 
-% --- Plot QFT templates
-plottmpl( w, P, nompt );
-
-% --- Change legend position
-hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-set( hLegend, 'location', 'southeast' );    % Access and change location
-% xlim( [-200 10] );
-title('Plant Templates')
-
-% --- Beautify plot
-make_nice_plot();
+if( PLOT )
+    % --- Plot QFT templates
+    plottmpl( w, P, nompt );
+    
+    % --- Change legend position
+    hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
+    set( hLegend, 'location', 'southeast' );    % Access and change location
+    
+    % --- Change plot limits
+%     xmin = -25; xmax = 10; dx = 5;
+%     xlim( [xmin xmax] );
+%     xticks( xmin:dx:xmax )
+    title( 'Plant Templates' )
+    
+    % --- Beautify plot
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -335,14 +356,16 @@ fprintf( '\t\t > ' );
 bdb1 = sisobnds( spec, omega_1, del_1, P, [], nompt );
 % R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
-% --- Plot bounds
-plotbnds( bdb1 );
-title( 'Robust Stability Bounds' );
-% xlim( [-360 0] ); ylim( [-15 25] );
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+    
+    % --- Plot bounds
+    plotbnds( bdb1 );
+    title( 'Robust Stability Bounds' );
+%     xlim( [-360 0] ); ylim( [-10 30] );
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -362,13 +385,15 @@ fprintf( '\t\t > ' );
 % --- Compute bounds
 bdb2 = sisobnds( spec, omega_3, del_3, P, [], nompt );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
-% --- Plot bounds
-plotbnds(bdb2);
-title('Sensitivity Reduction Bounds');
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+    
+    % --- Plot bounds
+    plotbnds(bdb7);
+    title( 'Sensitivity Reduction Bounds' );
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -386,13 +411,15 @@ fprintf( '\t\t > ' );
 % --- Compute bounds
 bdb7 = sisobnds( spec, omega_6, del_6, P );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
-% --- Plot bounds
-plotbnds(bdb7);
-title('Robust Tracking Bounds');
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+    
+    % --- Plot bounds
+    plotbnds(bdb7);
+    title( 'Robust Tracking Bounds' );
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -406,8 +433,10 @@ fprintf( '\tGrouping bounds...' );
 
 % --- Grouping bounds
 bdb = grpbnds( bdb1, bdb2, bdb7 );
-plotbnds(bdb);
-title('All Bounds');
+if( PLOT )
+    plotbnds(bdb);
+    title('All Bounds');
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -415,8 +444,10 @@ fprintf( '\tIntersection of bounds...' );
 
 % --- Find bound intersections
 ubdb=sectbnds(bdb);
-plotbnds(ubdb);
-title('Intersection of Bounds');
+if( PLOT )
+    plotbnds(ubdb);
+    title('Intersection of Bounds');
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -541,3 +572,41 @@ den = sym2poly( (s/70+1)*(s/200+1)^2 );
 clear s;
 G_updated = tf( num, den );         % Updated controller
 
+%% Test the feedforward bound generator
+% Recall, the disturbance rejection with feedforward element is defined as
+%
+%   | y(s) |   | M(s) + P(s)G_f(s) |
+%   | ---- | = | ----------------- | <= δ_d(𝜔) , 𝜔 𝜖 Ω_d
+%   | d(s) |   |    1 + P(s)G(s)   |
+%
+%   bdb = genbnds( ptype, w, Ws, A, B, C, D, Pnom, phs );
+%
+%   | y(s) |   |  A(s) + B(s)G(s)  |
+%   | ---- | = | ----------------- | <= Ws
+%   | d(s) |   |  C(s) + D(s)G(s)  |
+%
+
+% margins (1,1): g2=0
+disp(' ')
+disp( 'bdb11a=genbnds(12,w,W11,a,b,c,d,P(1,1,1));' );
+
+% --- Working frequencies
+w = [ 0.001 0.01 0.1 0.5 1 4 10 ];
+
+% --- Desired disturbance rejection specification
+W11 = 0.014;
+
+% --- Matrices
+a = M;
+b = P;
+c = 1;
+d = P;
+
+% --- Bound generation (ptype = 12: Disturbance rejection with feedforward)
+bdb11a = genbnds( 12, w, W11, a, b, c, d, P_0 );
+% genbnd12( w, W11, a, b, c, d, P_0 );
+
+% % --- Plot bounds
+% plotbnds(bdb11a);
+% title('Disturbance rejection specification with feedforward element Bounds');
+% make_nice_plot();

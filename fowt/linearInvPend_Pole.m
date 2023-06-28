@@ -538,34 +538,34 @@ lpshape( wl, ubdb, L0, G );
 fprintf( ACK );
 
 %% Step 10: Synthesize Prefitler F(s)
-% 
-% % [INFO] ...
-% fprintf( 'Step 10:' );
-% fprintf( '\tSynthesize F(s)...' );
-% 
-% syms s;
-% num = 1;
-% den = sym2poly( s/10 + 1 );
-% clear s;
-% 
-% F = tf( num, den );
-% 
-% pfshape( 1, wl, del_1, P, [], G, [], F );
-% 
-% % [INFO] ...
-% fprintf( ACK );
+
+% [INFO] ...
+fprintf( 'Step 10:' );
+fprintf( '\tSynthesize F(s)...' );
+
+syms s;
+num = 1;
+den = sym2poly( s/10 + 1 );
+clear s;
+
+F = tf( num, den );
+
+pfshape( 3, wl, del_1, P, [], G, [], F );
+
+% [INFO] ...
+fprintf( ACK );
 
 %% Step 11-13: ANALYSIS
 
 disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
-chksiso( 1, wl, del_1, P, [], G );
+chksiso( 1, wl, del_1, P, [], G, [], F );
 % ylim( [0 3.5] );
 
 disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
 ind = find(wl <= 50);
-chksiso( 2, wl(ind), del_3, P, [], G );
+chksiso( 2, wl(ind), del_3, P, [], G, [], F );
 ylim( [-90 10] );
 
 

@@ -11,7 +11,6 @@ function bds = genbnds(ptype,w,W,A,B,C,D,Pnom,ph_d)
 %         PTYPE specifies the closed-loop configurations.
 %         PTYPE=10: |(A+BG)/(C+DG)|<Ws
 %         PTYPE=11: (|A|+|BG|)/|(C+DG)|<Ws
-%         PTYPE=12: |(A+BG_f)/(C+DG)|<Ws
 %
 %         See also SISOBNDS, GRPBNDS, PLOTBNDS, SECTBNDS.
 
@@ -20,67 +19,64 @@ function bds = genbnds(ptype,w,W,A,B,C,D,Pnom,ph_d)
 % Revised: 2/16/96 1:06 PM V1.1 updates, 7/3/03 9:58AM v2.5 updates.
 % Copyright (c) 2002, Terasoft, Inc.
 
-if( ptype < 10 || ptype > 12 )
-    error( 'GENBNDS only accepts problem types between 10 and 12' );
+if ptype < 10 | ptype > 11,
+ error('GENBNDS only accepts problem types between 10 and 11');
 end
-% if ptype < 10 | ptype > 11,
-%     error('GENBNDS only accepts problem types between 10 and 11');
-% end
 
-if isa(A,'lti')
-   if length(w) == 1 && numel(A) > 1
+if isa(A,'lti'),
+   if length(w) == 1 & prod(size(A)) > 1,
       A = squeeze(freqresp(A, w));
    else
       A = squeeze(freqresp(A, w)).';
-   end %if
-   if any(any(isnan(A)))
+   end;%if
+   if any(any(isnan(A))),
       error('Frequency vector for A inconsistent with w.');
    end
-end %if isa(A,'lti')
+end;%if isa(A,'lti')
 
-if isa(B,'lti')
-   if length(w) == 1 && numel(B) > 1
+if isa(B,'lti'),
+   if length(w) == 1 & prod(size(B)) > 1,
       B = squeeze(freqresp(B, w));
    else
       B = squeeze(freqresp(B, w)).';
-   end %if
-   if any(any(isnan(B)))
+   end;%if
+   if any(any(isnan(B))),
       error('Frequency vector for B inconsistent with w.');
    end
-end %if isa(B,'lti')
+end;%if isa(B,'lti')
 
-if isa(C,'lti')
-   if length(w) == 1 && numel(C) > 1
+if isa(C,'lti'),
+   if length(w) == 1 & prod(size(C)) > 1,
       C = squeeze(freqresp(C, w));
    else
       C = squeeze(freqresp(C, w)).';
-   end %if
-   if any(any(isnan(C)))
+   end;%if
+   if any(any(isnan(C))),
       error('Frequency vector for C inconsistent with w.');
    end
-end %if isa(C,'lti')
+end;%if isa(C,'lti')
 
-if isa(D,'lti')
-   if length(w) == 1 && numel(D) > 1
+if isa(D,'lti'),
+   if length(w) == 1 & prod(size(D)) > 1,
       D = squeeze(freqresp(D, w));
    else
       D = squeeze(freqresp(D, w)).';
-   end %if
-   if any(any(isnan(D)))
+   end;%if
+   if any(any(isnan(D))),
       error('Frequency vector for D inconsistent with w.');
    end
-end %if isa(D,'lti')
+end;%if isa(D,'lti')
 
-if isa(Pnom,'lti')
-   if length(w) == 1 && numel(Pnom) > 1
+if isa(Pnom,'lti'),
+   if length(w) == 1 & prod(size(Pnom)) > 1,
       Pnom = squeeze(freqresp(Pnom, w));
    else
       Pnom = squeeze(freqresp(Pnom, w)).';
-   end %if
-   if any(any(isnan(Pnom)))
+   end;%if
+   if any(any(isnan(Pnom))),
       error('Frequency vector for Pnom inconsistent with w.');
    end
-end %if isa(Pnom,'lti')
+end;%if isa(Pnom,'lti')
 
 [rma,cma]=size(A);[rmc,cmc]=size(C);
 [rmb,cmb]=size(B);[rmd,cmd]=size(D);
@@ -100,35 +96,35 @@ else
  error('Improper number of inputs');
 end
 
-[rmw,~]=size(W);
+[rmw,cmw]=size(W);
 maxr = max(rmw,maxr);
 nbd=length(w);
 
-if length(Pnom)~=nbd
+if length(Pnom)~=nbd,
  error('Nominal plant information inconsistent with frequency vector');
 end
 
-if any(row~=1 & row~=maxr)
+if any(row~=1 & row~=maxr),
  error('Cannot have different numbers of rows in A, B, C & D');
 end
 
-if cma~=1 && cma~=nbd
+if cma~=1 & cma~=nbd,
  error('Matrix A inconsistent with frequency vector');
 end
 
-if cmb~=1 && cmb~=nbd
+if cmb~=1 & cmb~=nbd,
  error('Matrix B inconsistent with frequency vector');
 end
 
-if cmc~=1 && cmc~=nbd
+if cmc~=1 & cmc~=nbd,
  error('Matrix C inconsistent with frequency vector');
 end
 
-if cmd~=1 && cmd~=nbd
+if cmd~=1 & cmd~=nbd,
  error('Matrix D inconsistent with frequency vector');
 end
 
-if nargout == 1
+if nargout == 1,
  eval(['bds=genbnd',int2str(ptype),'(w,wbd,W,A,B,C,D,Pnom,ph_r,info);'],'qfterror(1,info)');
 else
  eval(['genbnd',int2str(ptype),'(w,wbd,W,A,B,C,D,Pnom,ph_r,info);'],'qfterror(1,info)');
