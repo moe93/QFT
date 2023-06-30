@@ -434,7 +434,7 @@ fprintf( '\tGrouping bounds...' );
 % --- Grouping bounds
 bdb = grpbnds( bdb1, bdb2, bdb7 );
 if( PLOT )
-    plotbnds(bdb);
+    plotbnds( bdb );
     title('All Bounds');
 end
 
@@ -443,9 +443,9 @@ fprintf( ACK );
 fprintf( '\tIntersection of bounds...' );
 
 % --- Find bound intersections
-ubdb=sectbnds(bdb);
+ubdb = sectbnds( bdb );
 if( PLOT )
-    plotbnds(ubdb);
+    plotbnds( ubdb );
     title('Intersection of Bounds');
 end
 
@@ -517,21 +517,19 @@ disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
 % chksiso( 1, wl, del_1, P, [], G );
 chksiso( 1, wl, del_1, P, [], G, [], F );
-% ylim( [0 3.5] );
 
 disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
 ind = find(wl <= 0.5);
 % chksiso( 2, wl(ind), del_3, P, [], G );
 chksiso( 2, wl(ind), del_3, P, [], G, [], F );
-% ylim( [-90 10] );
 
 disp(' ')
 disp('chksiso(7,wl,W3,P,R,G); %input disturbance rejection spec')
 drawnow
 % chksiso(7,wl(ind),W7,P,[],G);
 chksiso( 7, wl, del_6, P, [], G, [], F );
-% ylim( [-0.1 1.3] );
+
 
 %% Feedback and feedforward
 % Recall, G_f(s) = -P_c(s)^-1*M(s)*V(s)
@@ -588,7 +586,7 @@ G_updated = tf( num, den );         % Updated controller
 
 % margins (1,1): g2=0
 disp(' ')
-disp( 'bdb11a=genbnds(12,w,W11,a,b,c,d,P(1,1,1));' );
+disp( 'bdb12=genbnds(12,w,W11,a,b,c,d,P(1,1,1));' );
 
 % --- Working frequencies
 w = [ 0.001 0.01 0.1 0.5 1 4 10 ];
@@ -598,15 +596,51 @@ W11 = 0.014;
 
 % --- Matrices
 a = M;
-b = P;
+b = P*G_f;
 c = 1;
 d = P;
 
-% --- Bound generation (ptype = 12: Disturbance rejection with feedforward)
-bdb11a = genbnds( 12, w, W11, a, b, c, d, P_0 );
-% genbnd12( w, W11, a, b, c, d, P_0 );
+% --- Bound generation (ptype = 12: Sensitivity or output disturbance
+%                                   rejection with feedforward)
+bdb12 = genbnds( 12, w, W11, a, b, c, d, P_0 );
 
 % % --- Plot bounds
-% plotbnds(bdb11a);
-% title('Disturbance rejection specification with feedforward element Bounds');
-% make_nice_plot();
+plotbnds(bdb12);
+title('Disturbance rejection specification with feedforward element Bounds');
+make_nice_plot();
+
+%% Step XYZ: Re-intersect QFT Bounds with new feedforward  bound
+
+% [INFO] ...
+fprintf( 'Step 8:' );
+fprintf( '\tGrouping bounds...' );
+
+% --- Grouping bounds
+% bdb = grpbnds( bdb1, bdb12, bdb7 );
+bdb = grpbnds( bdb1, bdb12);
+if( ~PLOT )
+    plotbnds( bdb );
+    title('All Bounds');
+end
+
+% [INFO] ...
+fprintf( ACK );
+fprintf( '\tIntersection of bounds...' );
+
+% --- Find bound intersections
+ubdb = sectbnds( bdb );
+if( ~PLOT )
+    plotbnds( ubdb );
+    title('Intersection of Bounds');
+end
+
+% [INFO] ...
+fprintf( ACK );
+
+%% Misc
+
+syms s;
+num = -0.1818 .* sym2poly( (s/5.5)^2 + (2*0.85/5.5)*s + 1 );
+den = sym2poly( (s/0.625 +1)*(s + 1) );
+Gf = tf( num, den );
+clear s;
