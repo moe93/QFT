@@ -1,0 +1,36 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: QFT Control Design for MATLAB
+message: >-
+  Codebase is mainly Craig Borghesani's with various updates
+  to run on modern versions of MATLAB as the original code
+  is unmaintained.
+type: software
+authors:
+  - given-names: Craig
+    family-names: Borghesani
+  - given-names: Yossi
+    family-names: Chait
+  - given-names: Oded
+    family-names: Yaniv
+  - given-names: Mohammad
+    family-names: Odeh
+    email: contact@mohammadodeh.com
+    affiliation: University of Central Florida
+    orcid: 'https://orcid.org/0000-0002-9482-366X'
+url: 'http://cbs.ecs.umass.edu/cbs/software.html'
+abstract: >-
+  The Quantitative Feedback Theory (QFT) Frequency Domain
+  Control Design Toolbox is a collection of MATLAB functions
+  for designing robust feedback systems using the QFT
+  method. The QFT Toolbox includes a convenient GUI that
+  facilitates classical loop shaping of controllers to meet
+  design requirements in the face of plant uncertainty and
+  disturbances.
+keywords:
+  - QFT
+  - Quantitative Feedback Theory
+  - Robust control
+license: AGPL-3.0-or-later
