@@ -184,10 +184,10 @@ p22_0 = tf( k22_0, [1/a22_0, 1] );
 Pw_0 = [ p11_0, p12_0;
          p21_0, p22_0];
 % Modified nominal plant
-P_0 = Pw_0.*f_LP;
+P0 = Pw_0.*f_LP;
 
 % --- Append to the end of the gridded plants
-P( :, :, :, end+1 ) = P_0;
+P( :, :, end+1, : ) = P0;
 
 % --- Define nominal plant case
 nompt = length( P );
@@ -197,21 +197,13 @@ fprintf( ACK );
 
 % --- Plot bode diagram
 w = logspace( -7, -2, 1024 );
-[p0, theta0] = bode( P_0, w );
+[p0, theta0] = bode( P0, w );
 
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
-    bode( P_0, '-', P_0, '.r', w(1:32:end) ); grid on;
+    bode( P0, '-', P0, '.r', w(1:32:end) ); grid on;
     make_nice_plot();
 end
-
-% --- Plot root locus
-% if( PLOT )
-%     figure( CNTR ); CNTR = CNTR + 1;
-%     rlocus( P_0 );
-%     title('Root Locus of Plant (under Proportional Control)')
-%     make_nice_plot();
-% end
 
 %% Step 3: QFT Template
 
@@ -224,24 +216,76 @@ w =  [ 1e-7 5e-7, 1e-6 5e-6, 1e-5 2e-5 5e-5, 1e-4 2e-4 5e-4, 1e-3 2e-4 5e-3 ];
 
 if( PLOT )
     % --- Plot QFT templates
-    plottmpl( w, P, nompt );
+    for ROW = 1:width(P)
+        for COL = 1:width(P)
+            plottmpl( w, P(ROW, COL, :, :), nompt );
     
-    % --- Change legend position
-    hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
-    set( hLegend, 'location', 'southeast' );    % Access and change location
-    
-    % --- Change plot limits
-    xmin = -25; xmax = 10; dx = 5;
-    xlim( [xmin xmax] );
-    xticks( xmin:dx:xmax )
-    title( 'Plant Templates' )
-    
-    % --- Beautify plot
-    make_nice_plot();
+            % --- Change legend position
+            hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
+            set( hLegend, 'location', 'southeast' );    % Access and change location
+            
+            % --- Change plot limits
+            if( ROW == 2 && COL == 1)
+                xmin = -270; xmax = 45; dx = 45;
+                xlim( [xmin xmax] );
+                xticks( xmin:dx:xmax )
+            end
+
+            txt = ['Plant Templates for p' num2str(ROW) num2str(COL) '(s)' ];
+            title( txt )
+            
+            % --- Beautify plot
+            make_nice_plot();
+        end
+    end
 end
 
 % [INFO] ...
 fprintf( ACK );
+
+%% Step 3.5: RGA of the nominal plant, P0(s=0) and P0(s=inf)
+
+% --- Relative Gain Array (RGA) analysis
+%
+
+% Recall, the RGA matrix, Lambda, is defined as
+%
+%   Λ_0   = P( s=0 ) .* (P( s=0 )^-1)^T
+%               AND
+%   Λ_inf = P(s=inf) .* (P(s=inf)^-1)^T
+%
+
+% --- RGA for s=jw=0
+P0_0 = freqresp( P0, 0 );
+Lambda_0 = P0_0 .* inv(P0_0).';
+
+% --- RGA for s=jw=inf
+P0_inf = freqresp( P0, 1e16 );
+Lambda_inf = P0_inf .* inv(P0_inf).';
+
+% --- Determine pairing
+% Recall, the column element closest to 1 corresponds to the row pairing
+%
+%   Example:
+%                                        _   u1      u2      u3   _
+%                                       |  0.3180  0.0195  0.6630  | y1
+%       Λ_0 = P(s=0) .* (P(s=0)^-1)^T = |  0.6820  0.0091  0.3090  | y2
+%                                       |_    0    0.9710  0.0287 _| y3
+%
+%   According to RGA matrix, pairing is:
+%       ( u1, y2 ) --- ( u2, y3 ) --- ( u3, y1 )
+%
+
+fprintf( "Control - Output pairing:\n" );   % [INFO] ...
+VAL = 1;                                    % Value we want to be close to
+for COL = 1:width(Lambda_0)
+    Lambda_COL = Lambda_0(:, COL);          % Extract column
+    % Get the index of the element closest to VAL (=1)
+    [minValue, NDX] = min( abs(Lambda_COL-VAL) );
+    closestValue = Lambda_COL( NDX );
+
+    fprintf( "\t> ( u%i, y%i )\n", COL, NDX );
+end
 
 %% Step 4: Define Stability Specifications
 
@@ -261,11 +305,12 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.01 0.05 0.1 0.5 1 5 10 50 100 500 ];
-% Restriction
-W_s         = 1.08;
+omega_1 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 5e-5, ...
+            1e-4 2e-4  5e-4, 1e-3  2e-4 5e-3 ];
+% Restriction (for p_ii, i=1,2)
+W_s         = 1.66;
 del_1       = W_s;
-PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
+PM          = 180 - 2*(180/pi)*acos(0.5/W_s);       % In deg
 GM          = 20*log10( 1+1/W_s );                   % In dB
 
 % [INFO] ...
@@ -280,18 +325,67 @@ fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
 % --- Type 3
+%   Sensitivity or disturbances at plant output specification
+%
+
 % Frequencies of interest
-omega_3 = [ 0.1 0.5 1 5 10 50 ];
+omega_3 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 ];
 
 % Restriction
-num     = [ 0.025   , 0.2   , 0.018 ];
-den     = [ 0.025   , 10    , 1     ];
+a_d     = 2e-5;
+num     = [ 1/a_d , 0 ];
+den     = [ 1/a_d , 1 ];
 del_3   = tf( num, den );
+
+if( PLOT )
+    % --- PLOT bode response of del_3(s)
+    figure( CNTR ); CNTR = CNTR + 1;
+
+    w_del_3 = logspace( log10(w(1)), log10(w(end)));
+    [mag, ~] = bode( del_3, w_del_3 );
+    mag_dB = db( squeeze(mag) );
+
+    semilogx( w_del_3, mag_dB ); grid on;
+end
+
+% --- Type 6
+%   Reference tracking specification
+%
+
+% Frequencies of interest
+omega_6 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 5e-5, 1e-4 ];
+
+% Restriction
+% Upper bound
+a_U = 2e-5; zeta = 0.8; wn = 1.25*a_U/zeta;
+num = [ 1/a_U , 1 ];
+den = [ 1/wn^2, 2*zeta/wn, 1 ];
+del_6_U = tf( num, den );
+% Lower bound
+syms s;
+a_L = 2e-5;
+num = 1;
+den = sym2poly( (s/a_L + 1)^2 );
+del_6_L = tf( num, den );
+clear s;
+% Tracking weight
+del_6 = [ del_6_U  ;
+          del_6_L ];
+
+if( PLOT )
+    % --- PLOT step response of del_6_U(s) and del_6_L(s)
+    figure( CNTR ); CNTR = CNTR + 1;
+    stepplot( del_6_U, del_6_L ); grid on;
+end
 
 % [INFO] ...
 fprintf( ACK );
 
 %% Step 6: Calculate Staibility QFT Bounds
+
+%------------------------------------
+%           STOPPED HERE
+%------------------------------------
 
 % --- Example 2.1 continued (Pg. 36)
 %   - Type 1: Stability specification
@@ -476,7 +570,7 @@ ylim( [-90 10] );
 %   * For complex roots, phase gain/drop is +/-90deg
 
 % Open-loop TF
-T_OL = P_0*G;
+T_OL = P0*G;
 [~, phi_L0] = bode( T_OL, 1e-16 );
 [~, phi_Lw] = bode( T_OL, 1e+16 );
 delta       = sign( phi_L0 - phi_Lw );      % +ve if Lw goes initially to the left
@@ -497,23 +591,23 @@ end
 
 %% Check plant against Nyquist stability guidelines
 
-output = nyquistStability( P_0 );
+output = nyquistStability( P0 );
 
 if( PLOT )
-    figure();  rlocus( P_0 ); grid on;
-    figure(); nichols( P_0 ); grid on;
-    figure(); nyquist( P_0 );
+    figure();  rlocus( P0 ); grid on;
+    figure(); nichols( P0 ); grid on;
+    figure(); nyquist( P0 );
 end
 
 %% MISC. TEMPORARY OPERATIONS
 
 clc;
 % Open-loop TF
-T_OL = P_0*G;
+T_OL = P0*G;
 % Closed-loop TF
 T_CL = T_OL/(1+T_OL);
 fprintf( "\n-> G(s)\n" ); nyquistStability( tf(G), false )
-fprintf( "\n-> P(s)\n" ); nyquistStability( P_0, false )
+fprintf( "\n-> P(s)\n" ); nyquistStability( P0, false )
 fprintf( "\n-> L(s)\n" ); nyquistStability( T_OL, false )
 
 % Check SISO for sensitivity reduction
