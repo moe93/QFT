@@ -500,6 +500,7 @@ for i=1:width(P)
         plotbnds( bdb( :, :, i ) );
         txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
+        make_nice_plot();
     end
 end
 
@@ -514,6 +515,7 @@ for i=1:width(P)
         plotbnds( ubdb( :, :, i ) );
         txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
+        make_nice_plot();
     end
 end
 
@@ -522,186 +524,131 @@ fprintf( ACK );
 
 %% Step 9: Synthesize Feedback Controller G(s)
 
+% --- The fully populated matrix controller G(s) is composed of two
+% matrices: G(s) = G_alpha(s)*G_beta(s)
+%
+%   Let α = alpha and β = beta. Then,
+%                      _                     _     _                     _
+%                     |  g_11α  g_12α  g_13α  |   |  g_11β    0       0   |
+%       G = G_α*G_β = |  g_21α  g_22α  g_23α  | * |    0    g_22β     0   |
+%                     |_ g_31α  g_32α  g_33α _|   |_   0      0    g_33β _|
+%
+%   The main objective of the pre-compensator is to diagnolize the plant
+%   P(s) as much as possible. Therefore, the expression used to calculate
+%   G_a(s) is,
+%              _                     _ 
+%             |  g_11α  g_12α  g_13α  |
+%       G_α = |  g_21α  g_22α  g_23α  | = P(s)^-1*P_diag(s)
+%             |_ g_31α  g_32α  g_33α _|
+%
+%              _                     _     _                  _
+%             |  p'_11  p'_21  p'_31  |   |  p_11   0     0    |
+%           = |  p'_21  p'_22  p'_23  | * |   0    p_21   0    |
+%             |_ p'_31  p'_32  p'_33 _|   |_  0     0    p_33 _|
+%
+%   Where p'_ij corresponds to ij-th element of the inverted P(s) matrix.
+%
+%       In addition, the plant matrix P(s), the corresponding inverse
+%   P(s)^–1, and the diagonal P_diag(s) are selected so that the expression
+%   of the extended matrix P_x = P*G_α presents the closest form to a
+%   diagonal matrix, nulling the off-diagonal terms as much as possible.
+%
+
 % [INFO] ...
 fprintf( 'Step 9:' );
-fprintf( '\tSynthesize G(s)...' );
+fprintf( '\tSynthesize G(s)...\n' );
 
-% --- Directory where QFT generated controllers are stored
-src = './controllerDesigns/';
+% --- Working frequency range
+wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 
-for i=1:width(P)
-    % --- Controller, G(s)
-    G_file  = [ src 'g' num2str(i) num2str(i) '_i.shp' ];
-    if( isfile(G_file) )
-        g_ii( :, :, i ) = getqft( G_file );
-    else
-        if( i == 1 )
-            num = -0.0006 .* [ 1/3e-5, 1];      % Numerator
-            den = [ 1, 0 ];                     % Denominator
-        elseif( i == 2 )
-            num = -1.5 .* [ 1/4.5e-5, 1];       % Numerator
-            den = [ 1, 0 ];                     % Denominator
-        end
-        
-        % Construct controller TF
-        g_ii( :, :, i ) = tf( num, den );
+% --------------------------------------------------
+% ----              Generate G_α(s)             ----
+% --------------------------------------------------
+
+% --- Generate diagonal matrix
+P_diag  = tf( zeros(size(P)) );             % Pre-allocate memory
+for ii  = 1:width( P )
+    P_diag( ii, ii, :, : )  = P( ii, ii, :, : );
+end
+
+% --- Compute the gain of all elements in P^1(s) * P_diag(s)
+TOL = 0.01;                                 % Tolerance for cancellation
+PinvPdiag = minreal( P \ P_diag, TOL );     % Compute P^-1*P_diag
+
+gain_PinvPdiag = zeros( size(P) );          % Pre-allocate memory
+for ROW = 1:width( PinvPdiag )              % Loop over ROWS
+    for COL = 1:width( PinvPdiag )          % Loop over COLS
+        for NDX = 1:n_Plants                % Loop over variations
+            
+            % Get the n-th plant
+            nth_Plant = PinvPdiag(ROW, COL, NDX, :);
+            % Compute DC gain
+            kP = dcgain( nth_Plant );
+            % Store in a matrix
+            gain_PinvPdiag(ROW, COL, NDX, :) = kP;
+
+        end  
     end
 end
 
-% Define a frequency array for loop shaping
-wl = logspace( log10(w(1)), log10(w(end)), 2048 );
+% --- Compute the mean value
+NROWS = width( gain_PinvPdiag );
+NCOLS = width( gain_PinvPdiag );
+meanGain_PinvPdiag = zeros( NROWS, NCOLS ); % Pre-allocate memory
+for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
+    for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
 
-% --- Loop over plants and design the controller
-for i=1:width(P)
-    L0(:, :, i) = P( i, i, nompt );
-    L0(:, :, i).ioDelay = 0; % no delay
-    lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
-    qpause;
+        meanGain_PinvPdiag(ROW, COL) = mean( gain_PinvPdiag(ROW, COL, :) );
+    
+    end
 end
 
-% [INFO] ...
-fprintf( ACK );
+% --- Lastly, construct G_alpha(s) based on the mean value obtained
+err         = [ inf, inf; inf, inf ];
+newErr      = [  0 ,  0 ;  0 ,  0  ];
+nPinvPdiag  = [  0 ,  0 ;  0 ,  0  ];
+G_alpha     = tf( zeros(size(nPinvPdiag)) );
+
+for ROW = 1:width( PinvPdiag )              % Loop over ROWS
+    for COL = 1:width( PinvPdiag )          % Loop over COLS
+        for NDX = 1:n_Plants                % Loop over variations
+            newErr(ROW, COL) = abs( meanGain_PinvPdiag(ROW, COL) - gain_PinvPdiag( ROW, COL, NDX) );
+            if( newErr(ROW, COL) <= err(ROW, COL) )
+                nPinvPdiag(ROW, COL) = NDX;
+                err(ROW, COL) = newErr(ROW, COL);
+            end
+        end
+    end
+end
+
+% --- g_alpha_ij(s) is defined here
+for ROW = 1:width( PinvPdiag )              % Loop over ROWS
+    for COL = 1:width( PinvPdiag )          % Loop over COLS
+
+        g_ij = PinvPdiag( ROW, COL, nPinvPdiag(ROW, COL) );
+        G_alpha( ROW, COL ) = minreal( g_ij, 0.1 );
+
+    end
+end
+
+% --- Plot to visualize
+if( ~PLOT )
+    for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
+        for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
+            figure(); bode( PinvPdiag(ROW, COL, :, :), wl );  grid on;
+            hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
+            bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
+            title(['Bode plot of g_{' num2str(ROW) num2str(COL) '}(s)']);
+            make_nice_plot();
+        end
+    end
+end
+ 
+% --------------------------------------------------
+% ----              Generate G_β(s)             ----
+% --------------------------------------------------
+% Px_star = inv( Px );
 
 
 %% Step 10: Synthesize Prefitler F(s)
 
-% [INFO] ...
-fprintf( 'Step 10:' );
-fprintf( '\tSynthesize F(s)...' );
-
-for i=1:width(P)
-    % --- Pre-filter, F(s)
-    F_file  = [ src 'f' num2str(i) num2str(i) '_i.fsh' ];
-    if( isfile(F_file) )
-        f_ii( :, :, i ) = getqft( F_file );
-    else
-        if( i == 1 )
-            num = 1;                            % Numerator
-            den = [ 1/3.2e-5, 1 ];              % Denominator
-        elseif( i == 2 )
-            num = 1;                            % Numerator
-            den = [ 1/3.2e-5, 1 ];              % Denominator
-        end
-        
-        % Construct controller TF
-        f_ii( :, :, i ) = tf( num, den );
-    end
-end
-
-WW = logspace( log10( omega_6(1) ), ...         % Refine frequency array
-               log10( omega_6(end) ), 1024 );
-
-% --- Loop over plants and design the pre-filter
-for i=1:width(P)
-    PP = P( i, i, nompt );                      % Extract plant
-    GG = g_ii( :, :, i );                       % Extract controller
-    FF = f_ii( :, :, i );                       % Extract pre-filter
-
-    % Loopshape
-    pfshape( 7, WW, del_6, PP, [], GG, [], FF );
-    qpause;
-end
-
-% [INFO] ...
-fprintf( ACK );
-
-%% Step 11-13: ANALYSIS
-
-%------------------------------------
-%           STOPPED HERE
-%------------------------------------
-
-% [INFO] ...
-fprintf( 'Steps 11-13:' );
-fprintf( '\tRun Analysis...' );
-
-for i=1:width(P)
-    PP = P( i, i, nompt );                      % Extract plant
-    GG = g_ii( :, :, i );                       % Extract controller
-    FF = f_ii( :, :, i );                       % Extract pre-filter
-    
-    fprintf( "Stability Margins Specification\n" );
-    fprintf( '\t> chksiso(1, wl, del_1, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
-              i, i, i, i, i, i)
-    chksiso( 1, wl, del_1, PP, [], GG, [], FF );
-    % [INFO] ...
-    fprintf( "\t\t> " ); fprintf( ACK );
-    
-    fprintf( "Sensitivity Reduction Specification\n" );
-    fprintf( '\t> chksiso(2, wl, del_3, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
-              i, i, i, i, i, i)
-    ind = wl <= max(omega_3);
-    chksiso( 2, wl(ind), del_3, PP, [], GG, [], FF );
-    % [INFO] ...
-    fprintf( "\t\t> " ); fprintf( ACK );
-
-    fprintf( "Input Disturbance Rejection Specification\n" );
-    fprintf( '\t> chksiso(7, wl, del_6, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
-              i, i, i, i, i, i)
-    ind = find(wl <= max(omega_6));
-    chksiso( 7, wl(ind), del_6, PP, [], GG, [], FF );
-    % [INFO] ...
-    fprintf( "\t\t> " ); fprintf( ACK );
-end
-
-% % [INFO] ...
-% fprintf( ACK );
-
-%% Check system/controller against Nyquist stability guidelines
-
-% --- NOTE:
-%   * Adding a zero corresponds to a +ve phase gain of +45deg / decade
-%   * Adding a pole corresponds to a -ve phase drop of -45deg / decade
-%
-%   * Adding a  differentiator  shifts initial phase by +90deg
-%   * Adding an integrator      shifts initial phase by -90deg
-%
-%   * For complex roots, phase gain/drop is +/-90deg
-
-%{
-% Open-loop TF
-T_OL = P0*G;
-[~, phi_L0] = bode( T_OL, 1e-16 );
-[~, phi_Lw] = bode( T_OL, 1e+16 );
-delta       = sign( phi_L0 - phi_Lw );      % +ve if Lw goes initially to the left
-
-% Closed-loop TF
-T_CL = T_OL/(1+T_OL);
-
-% Check if Nyquist stability criterions are met
-nyquistStability( tf(T_OL), false )
-zpk( T_OL )
-
-% Plot
-if( PLOT )
-    % Draw bode plot for further analysis
-    figure();    bode( T_OL ); grid on;
-    figure(); impulse( T_CL ); grid on;
-end
-
-%}
-
-%% Check plant against Nyquist stability guidelines
-
-%{
-output = nyquistStability( P0 );
-
-if( PLOT )
-    figure();  rlocus( P0 ); grid on;
-    figure(); nichols( P0 ); grid on;
-    figure(); nyquist( P0 );
-end
-%}
-
-%% MISC. TEMPORARY OPERATIONS
-
-%{
-clc;
-% Open-loop TF
-T_OL = P0*G;
-% Closed-loop TF
-T_CL = T_OL/(1+T_OL);
-fprintf( "\n-> G(s)\n" ); nyquistStability( tf(G), false )
-fprintf( "\n-> P(s)\n" ); nyquistStability( P0, false )
-fprintf( "\n-> L(s)\n" ); nyquistStability( T_OL, false )
-%}
