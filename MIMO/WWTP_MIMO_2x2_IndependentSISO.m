@@ -4,6 +4,7 @@
 %       Case Study 3 - Pg. 343
 %
 %   2x2 MIMO system
+%       Independent SISO Controller Design
 %
 %   AUTHOR  : Mohammad Odeh
 %   DATE    : Jul.  6th, 2023
@@ -33,7 +34,7 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-% PLOT = false;                               % COMMENT OUT TO PRINT FIGURES
+PLOT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
@@ -383,10 +384,6 @@ fprintf( ACK );
 
 %% Step 6: Calculate Staibility QFT Bounds
 
-%------------------------------------
-%           STOPPED HERE
-%------------------------------------
-
 % --- Example 2.1 continued (Pg. 36)
 %   - Type 1: Stability specification
 %       > Corresponds to sisobnds( 1, ... )
@@ -409,20 +406,23 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
-bdb1 = sisobnds( spec, omega_1, del_1, P, [], nompt );
-% R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
-
-if( PLOT )
-    % [INFO] ...
-    fprintf( 'Plotting bounds...' );
+for i=1:width(P)
+    p_ii = P( i, i, :, : );
+    bdb1(:, :, i) = sisobnds( spec, omega_1, del_1, p_ii, [], nompt );
+    % R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
     
-    % --- Plot bounds
-    plotbnds( bdb1 );
-    title( 'Robust Stability Bounds' );
-    xlim( [-360 0] ); ylim( [-10 30] );
-    make_nice_plot();
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+        
+        % --- Plot bounds
+        plotbnds( bdb1(:, :, i) );
+        txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        % xlim( [-360 0] ); ylim( [-10 30] );
+        make_nice_plot();
+    end
 end
-
 % [INFO] ...
 fprintf( ACK );
 
@@ -439,21 +439,53 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
-bdb2 = sisobnds( spec, omega_3, del_3, P, [], nompt );
-
-if( PLOT )
-    % [INFO] ...
-    fprintf( 'Plotting bounds...' );
+for i=1:width(P)
+    p_ii = P( i, i, :, : );
+    bdb2(:, :, i) = sisobnds( spec, omega_3, del_3, p_ii, [], nompt );
     
-    % --- Plot bounds
-    plotbnds(bdb2);
-    title('Sensitivity Reduction Bounds');
-    make_nice_plot();
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+        
+        % --- Plot bounds
+        plotbnds( bdb2(:, :, i) );
+        txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
+end
+% [INFO] ...
+fprintf( ACK );
+
+% --------------------------------------------------
+% ---- Type 6: Reference tracking specification ----
+% --------------------------------------------------
+spec = 7;
+
+% [INFO] ...
+fprintf( '\tComputing bounds: ' );
+fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
+fprintf( '\t\t > ' );
+
+% --- Compute bounds
+for i=1:width(P)
+    p_ii = P( i, i, :, : );
+    bdb7(:, :, i) = sisobnds( spec, omega_6, del_6, p_ii, [], nompt );
+    
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+        
+        % --- Plot bounds
+        plotbnds( bdb7(:, :, i) );
+        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
 end
 
 % [INFO] ...
 fprintf( ACK );
-
 
 %% Step 8: Intersection of QFT Bounds and Compatibility
 
@@ -462,21 +494,27 @@ fprintf( 'Step 8:' );
 fprintf( '\tGrouping bounds...' );
 
 % --- Grouping bounds
-bdb = grpbnds( bdb1, bdb2 );
-if( PLOT )
-    plotbnds(bdb); 
-    title('All Bounds');
+for i=1:width(P)
+    bdb( :, :, i ) = grpbnds( bdb1(:,:,i), bdb2(:,:,i), bdb7(:,:,i) );
+    if( PLOT )
+        plotbnds( bdb( :, :, i ) );
+        txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+    end
 end
 
 % [INFO] ...
 fprintf( ACK );
 fprintf( '\tIntersection of bounds...' );
 
-% --- Find bound intersections
-ubdb = sectbnds(bdb);
-if( PLOT )
-    plotbnds(ubdb);
-    title('Intersection of Bounds');
+for i=1:width(P)    
+    % --- Find bound intersections
+    ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
+    if( PLOT )
+        plotbnds( ubdb( :, :, i ) );
+        txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+    end
 end
 
 % [INFO] ...
@@ -490,73 +528,120 @@ fprintf( '\tSynthesize G(s)...' );
 
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
-% --- Pole controller, G_theta(s)
-G_file  = [ src 'linearInvPend_Pole_Simplified_V2.shp' ];
-if( isfile(G_file) )
-    G = getqft( G_file );
-else
-    % From PID TUNER
-    PID_P   = -433.469;
-    PID_I   = -976.195;
-    PID_D   = - 47.263;
-    PID_N   =  262.366;
 
-    % Convert to proper form
-    Kp  = PID_P;
-    Ti  = Kp/PID_I;
-    Td  = Kp/PID_D;
-    N   = PID_N;
-    syms s;
-    num = Kp .* sym2poly( Ti*Td*(1+1/N)*s^2 + (Ti+Td/N)*s + 1 );    % Get coefficients
-    den = Ti .* sym2poly( s*( (Td/N)*s + 1 ) );                     % ...
-    clear s;
-    
-    % Construct controller TF
-    G = tf( num, den );
+for i=1:width(P)
+    % --- Controller, G(s)
+    G_file  = [ src 'g' num2str(i) num2str(i) '_i.shp' ];
+    if( isfile(G_file) )
+        g_ii( :, :, i ) = getqft( G_file );
+    else
+        if( i == 1 )
+            num = -0.0006 .* [ 1/3e-5, 1];      % Numerator
+            den = [ 1, 0 ];                     % Denominator
+        elseif( i == 2 )
+            num = -1.5 .* [ 1/4.5e-5, 1];       % Numerator
+            den = [ 1, 0 ];                     % Denominator
+        end
+        
+        % Construct controller TF
+        g_ii( :, :, i ) = tf( num, den );
+    end
 end
 
 % Define a frequency array for loop shaping
-wl = logspace( log10(0.01), log10(500), 2048 );
-L0 = P( 1, 1, nompt );
-L0.ioDelay = 0; % no delay
-lpshape( wl, ubdb, L0, G );
+wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 
+% --- Loop over plants and design the controller
+for i=1:width(P)
+    L0(:, :, i) = P( i, i, nompt );
+    L0(:, :, i).ioDelay = 0; % no delay
+    lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
+    qpause;
+end
 
 % [INFO] ...
 fprintf( ACK );
 
 
 %% Step 10: Synthesize Prefitler F(s)
-% 
-% % [INFO] ...
-% fprintf( 'Step 10:' );
-% fprintf( '\tSynthesize F(s)...' );
-% 
-% syms s;
-% num = 1;
-% den = sym2poly( s/10 + 1 );
-% clear s;
-% 
-% F = tf( num, den );
-% 
-% pfshape( 1, wl, del_1, P, [], G, [], F );
-% 
-% % [INFO] ...
-% fprintf( ACK );
+
+% [INFO] ...
+fprintf( 'Step 10:' );
+fprintf( '\tSynthesize F(s)...' );
+
+for i=1:width(P)
+    % --- Pre-filter, F(s)
+    F_file  = [ src 'f' num2str(i) num2str(i) '_i.fsh' ];
+    if( isfile(F_file) )
+        f_ii( :, :, i ) = getqft( F_file );
+    else
+        if( i == 1 )
+            num = 1;                            % Numerator
+            den = [ 1/3.2e-5, 1 ];              % Denominator
+        elseif( i == 2 )
+            num = 1;                            % Numerator
+            den = [ 1/3.2e-5, 1 ];              % Denominator
+        end
+        
+        % Construct controller TF
+        f_ii( :, :, i ) = tf( num, den );
+    end
+end
+
+WW = logspace( log10( omega_6(1) ), ...         % Refine frequency array
+               log10( omega_6(end) ), 1024 );
+
+% --- Loop over plants and design the pre-filter
+for i=1:width(P)
+    PP = P( i, i, nompt );                      % Extract plant
+    GG = g_ii( :, :, i );                       % Extract controller
+    FF = f_ii( :, :, i );                       % Extract pre-filter
+
+    % Loopshape
+    pfshape( 7, WW, del_6, PP, [], GG, [], FF );
+    qpause;
+end
+
+% [INFO] ...
+fprintf( ACK );
 
 %% Step 11-13: ANALYSIS
 
-disp(' ')
-disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
-chksiso( 1, wl, del_1, P, [], G );
-% ylim( [0 3.5] );
+% [INFO] ...
+fprintf( 'Steps 11-13:' );
+fprintf( '\tRun Analysis...' );
 
-disp(' ')
-disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
-ind = find(wl <= 50);
-chksiso( 2, wl(ind), del_3, P, [], G );
-ylim( [-90 10] );
+for i=1:width(P)
+    PP = P( i, i, nompt );                      % Extract plant
+    GG = g_ii( :, :, i );                       % Extract controller
+    FF = f_ii( :, :, i );                       % Extract pre-filter
+    
+    fprintf( "Stability Margins Specification\n" );
+    fprintf( '\t> chksiso(1, wl, del_1, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
+              i, i, i, i, i, i)
+    chksiso( 1, wl, del_1, PP, [], GG, [], FF );
+    % [INFO] ...
+    fprintf( "\t\t> " ); fprintf( ACK );
+    
+    fprintf( "Sensitivity Reduction Specification\n" );
+    fprintf( '\t> chksiso(2, wl, del_3, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
+              i, i, i, i, i, i)
+    ind = wl <= max(omega_3);
+    chksiso( 2, wl(ind), del_3, PP, [], GG, [], FF );
+    % [INFO] ...
+    fprintf( "\t\t> " ); fprintf( ACK );
 
+    fprintf( "Input Disturbance Rejection Specification\n" );
+    fprintf( '\t> chksiso(7, wl, del_6, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
+              i, i, i, i, i, i)
+    ind = find(wl <= max(omega_6));
+    chksiso( 7, wl(ind), del_6, PP, [], GG, [], FF );
+    % [INFO] ...
+    fprintf( "\t\t> " ); fprintf( ACK );
+end
+
+% % [INFO] ...
+% fprintf( ACK );
 
 %% Check system/controller against Nyquist stability guidelines
 
@@ -569,6 +654,7 @@ ylim( [-90 10] );
 %
 %   * For complex roots, phase gain/drop is +/-90deg
 
+%{
 % Open-loop TF
 T_OL = P0*G;
 [~, phi_L0] = bode( T_OL, 1e-16 );
@@ -589,8 +675,11 @@ if( PLOT )
     figure(); impulse( T_CL ); grid on;
 end
 
+%}
+
 %% Check plant against Nyquist stability guidelines
 
+%{
 output = nyquistStability( P0 );
 
 if( PLOT )
@@ -598,9 +687,11 @@ if( PLOT )
     figure(); nichols( P0 ); grid on;
     figure(); nyquist( P0 );
 end
+%}
 
 %% MISC. TEMPORARY OPERATIONS
 
+%{
 clc;
 % Open-loop TF
 T_OL = P0*G;
@@ -609,12 +700,4 @@ T_CL = T_OL/(1+T_OL);
 fprintf( "\n-> G(s)\n" ); nyquistStability( tf(G), false )
 fprintf( "\n-> P(s)\n" ); nyquistStability( P0, false )
 fprintf( "\n-> L(s)\n" ); nyquistStability( T_OL, false )
-
-% Check SISO for sensitivity reduction
-% ind = find(wl <= 50);
-% chksiso( 2, wl(ind) , del_3, P, [], G );
-chksiso( 1, wl      , del_1, P, [], G );
-ylim( [-90 10] );
-
-% Check impulse response
-figure(); impulse( T_CL ); grid on;
+%}
