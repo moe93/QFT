@@ -43,6 +43,11 @@ PRNT = true;                                %#ok<NASGU>
 % --- [INFO] Strings
 ACK = 'COMPLETED\n\n';
 
+% --- Plot line color/style
+c_line = [ 'r', 'g', 'b', 'c', 'm', 'k' ];
+C_line = [ c_line, c_line, c_line, c_line ];
+C_line = [ C_line, C_line, C_line, C_line ];
+
 %% Add folders/files to path
 % Get current path to working directory and split
 pathParts = strsplit( pwd, filesep );
@@ -133,9 +138,7 @@ for var1 = 1:grid_k11                               % Loop over k11
                                     [1/a21, 1] );
                 p22(:, :, NDX) = tf( k22        , ...
                                     [1/a22, 1] );
-                % % --- Place them all in one big matrix
-                % Pw(:, :, NDX) = [ p11, p12 ;
-                %                   p21, p22 ];
+
                 NDX = NDX + 1;                      % Increment counter
             end
         end
@@ -548,15 +551,10 @@ fprintf( ACK );
 %
 %   Where p'_ij corresponds to ij-th element of the inverted P(s) matrix.
 %
-%       In addition, the plant matrix P(s), the corresponding inverse
-%   P(s)^–1, and the diagonal P_diag(s) are selected so that the expression
-%   of the extended matrix P_x = P*G_α presents the closest form to a
-%   diagonal matrix, nulling the off-diagonal terms as much as possible.
-%
 
 % [INFO] ...
 fprintf( 'Step 9:' );
-fprintf( '\tSynthesize G(s)...\n' );
+fprintf( '\tSynthesize G(s)\n' );
 
 % --- Working frequency range
 wl = logspace( log10(w(1)), log10(w(end)), 2048 );
@@ -564,6 +562,9 @@ wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 % --------------------------------------------------
 % ----              Generate G_α(s)             ----
 % --------------------------------------------------
+
+% [INFO] ...
+fprintf( '\t> Computing G_alpha(s)...' );
 
 % --- Generate diagonal matrix
 P_diag  = tf( zeros(size(P)) );             % Pre-allocate memory
@@ -643,12 +644,109 @@ if( ~PLOT )
         end
     end
 end
- 
+
+% [INFO] ...
+fprintf( ACK );
+
 % --------------------------------------------------
 % ----              Generate G_β(s)             ----
 % --------------------------------------------------
-% Px_star = inv( Px );
 
+% [INFO] ...
+fprintf( '\t> Computing G_beta(s)...' );
+
+% --- Start by computing the extended matrix Px = P*G_α
+%
+%   Recall,
+%
+%       In addition, the plant matrix P(s), the corresponding inverse
+%   P(s)^–1, and the diagonal P_diag(s) are selected so that the expression
+%   of the extended matrix Px = P*G_α presents the closest form to a
+%   diagonal matrix, nulling the off-diagonal terms as much as possible.
+%
+
+Px = minreal( P * G_alpha, 0.1 );                   % Extended matrix
+Px_star = minreal( inv(Px), 0.1 );                  % Invert extended matrix
+
+% --- Sequential desgin (loop-shape) gbeta_ii(s), where
+%
+%       > g_ij(s)  = 0 for i != j
+%       > g_ij(s) != 0 for i  = j
+%
+%   Furthermore, recall that the loop L_ii(s) is defined as:
+%
+%       > L_ii(s) = qx_ii(s) * gbeta_ii(s)
+%
+%   Where qx_ii(s) = 1/px_ii(s) = big expression
+%
+
+qx11 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
+qx11( 1, 1, : ) = 1/Px_star( 1, 1, : );             % Initialize
+
+% --- Loopshape g11_b(s) controller over L11(s) = qx11(s) * g11_b(s)
+%
+
+% --- Directory where QFT generated controllers are stored
+src = './controllerDesigns/';
+
+% --- Controller, G(s)
+G_file  = [ src 'g11_b.shp' ];
+if( ~isfile(G_file) )
+    g11_b = getqft( G_file );
+else
+    syms s;
+    num = -8e-4 .* sym2poly( (s/5e-5 + 1)*(s/9e-5 + 1)* ...
+                             (s/14e-5 + 1)*(s/3e-4 + 1) );   % Numerator
+    den = sym2poly( s*(s/9e-4 + 1) * (s/0.04 + 1)^2 * ...
+                      (s/0.2 + 1) );                % Denominator
+    clear s;
+    
+    % Construct controller TF
+    g11_b = tf( num, den );                         % Eq.(CS3.25)
+end
+
+% Start loopshaping GUI
+L11 = qx11( 1, 1, nompt );                          % Desired loop
+L11.ioDelay = 0;                                    % No delay
+lpshape( wl, ubdb(:, :, 1), L11, g11_b );
+qpause;
+
+% Compute qx_22
+qx22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
+px22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
+NDX = 1;                                            % Plant counter
+for var1 = 1:grid_k11                               % Loop over k11
+    
+    for var2 = 1:grid_a11                           % Loop over a11
+
+        for var3 = 1:grid_k22                       % Loop over k22
+
+            for var4 = 1:grid_a22                   % Loop over a22
+                
+                % --- Use sequential method
+                gg = Px_star(2, 2, NDX) - ...
+                     (Px_star(2, 1, NDX) * Px_star(1, 2, NDX)) / ...
+                     (Px_star(1, 1, NDX) + g11_b);
+                px22( 2, 2, NDX ) = minreal( gg, 0.01 );
+
+                NDX = NDX + 1;                      % Increment counter
+            end
+        end
+    end
+end
+
+qx22( 2, 2, : ) = 1/px22( 2, 2, : );
+
+% --- Loopshape g22_b(s) controller over L22(s) = qx22(s) * g22_b(s)
+g22_b   = tf( 0.4*[1/0.1 1], [1/40 1 0] ); % Eq.(8.187)
+
+
+
+% [INFO] ...
+fprintf( ACK );
 
 %% Step 10: Synthesize Prefitler F(s)
 
+% --- Loopshape pre-filters
+f11 = tf( [1/20 1], [1/2 1] ); % Eq.(8.184)
+f22 = tf( [1/20 1], [1/2 1] ); % Eq.(8.188)
