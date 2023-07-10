@@ -573,7 +573,7 @@ end
 % [INFO] ...
 fprintf( ACK );
 
-%% Step 9: Synthesize Feedback Controller G(s)
+%% Step 9.1: Synthesize Feedback Controller G_α(s)
 
 % --- The fully populated matrix controller G(s) is composed of two
 % matrices: G(s) = G_alpha(s)*G_beta(s)
@@ -653,7 +653,14 @@ for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
     end
 end
 
-% --- Lastly, construct G_alpha(s) based on the mean value obtained
+% --- Lastly, construct initial G_α(s) controller based on the
+%   mean value obtained.
+%
+%   ***NOTE:
+%       This is NOT necessarily the final form of G_α(s), as we may
+%   need/want to tweak it to avoid certain frequencies for instance. 
+%
+
 err         = [ inf, inf; inf, inf ];
 newErr      = [  0 ,  0 ;  0 ,  0  ];
 nPinvPdiag  = [  0 ,  0 ;  0 ,  0  ];
@@ -682,7 +689,7 @@ for ROW = 1:width( PinvPdiag )              % Loop over ROWS
 end
 
 % --- Plot to visualize
-if( ~PLOT )
+if( PLOT )
     for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
         for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
             figure(); bode( PinvPdiag(ROW, COL, :, :), wl );  grid on;
@@ -698,8 +705,42 @@ if( ~PLOT )
     end
 end
 
+% --- As we can see, the initial G_α(s) controller based on the
+%   mean value works great for low frequencies. However, we need it to
+%   then filter out the dynamics before the nmp zero at −2 × 10–4
+%   rad/s
+%
+%   Let's use the Control System Designer Toolbox to loopshape the
+%   G_α(s) = g_α_ij controller
+%
+
+% g11_a = minreal( G_alpha(1, 1), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
+% qpause;
+g11_a = tf( 0.0001429, [1 0.00015] );       % Updated controller
+
+% g12_a = minreal( G_alpha(1, 2), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g12_a );  % Loop-shape
+% qpause;
+g12_a = tf( -3.6064e-08, [1 0.00015] );     % Updated controller
+
+% g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g21_a );  % Loop-shape
+% qpause;
+g21_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+% g22_a = minreal( G_alpha(2, 2), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g22_a );  % Loop-shape
+% qpause;
+g22_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+G_alpha = [ g11_a, g12_a ;
+            g21_a, g22_a ];
+
 % [INFO] ...
 fprintf( ACK );
+
+%% Step 9.1: Synthesize Feedback Controller G_β(s)
 
 % --------------------------------------------------
 % ----              Generate G_β(s)             ----
@@ -733,18 +774,18 @@ Px_star = minreal( inv(Px), 0.1 );                  % Invert extended matrix
 %   Where qx_ii(s) = 1/px_ii(s) = big expression
 %
 
-qx11 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
-qx11( 1, 1, : ) = 1/Px_star( 1, 1, : );             % Initialize
-
 % --- Loopshape g11_b(s) controller over L11(s) = qx11(s) * g11_b(s)
 %
+
+qx11 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
+qx11( 1, 1, : ) = 1/Px_star( 1, 1, : );             % Initialize
 
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
 
 % --- Controller, G(s)
 G_file  = [ src 'g11_b.shp' ];
-if( ~isfile(G_file) )
+if( isfile(G_file) )
     g11_b = getqft( G_file );
 else
     syms s;
@@ -759,10 +800,12 @@ else
 end
 
 % Start loopshaping GUI
-% L11 = qx11( 1, 1, nompt );                          % Desired loop
-% L11.ioDelay = 0;                                    % No delay
-% lpshape( wl, ubdb(:, :, 1), L11, g11_b );
+L11 = qx11( 1, 1, nompt );                          % Desired loop
+L11.ioDelay = 0;                                    % No delay
+lpshape( wl, ubdb(:, :, 1), L11, g11_b );
 % qpause;
+
+% --- Loopshape g22_b(s) controller over L22(s) = qx22(s) * g22_b(s)
 
 % Compute qx_22
 qx22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
@@ -790,9 +833,26 @@ end
 
 qx22( 2, 2, : ) = 1/px22( 2, 2, : );
 
-% --- Loopshape g22_b(s) controller over L22(s) = qx22(s) * g22_b(s)
-g22_b   = tf( 0.4*[1/0.1 1], [1/40 1 0] ); % Eq.(8.187)
+% --- Controller, G(s)
+G_file  = [ src 'g22_b.shp' ];
+if( isfile(G_file) )
+    g22_b = getqft( G_file );
+else
+    syms s;
+    num = -0.52 .* sym2poly( (s/5e-5 + 1)^3 );      % Numerator
+    den = sym2poly( s*(s/0.0010 + 1) * ...
+                      (s/0.0013 + 1)^2 );             % Denominator
+    clear s;
+    
+    % Construct controller TF
+    g22_b = tf( num, den );                         % Eq.(CS3.29)
+end
 
+% Start loopshaping GUI
+L22 = qx22( 2, 2, nompt-1 );                          % Desired loop
+L22.ioDelay = 0;                                    % No delay
+lpshape( wl, ubdb(:, :, 1), L22, g22_b );
+% qpause;
 
 
 % [INFO] ...
