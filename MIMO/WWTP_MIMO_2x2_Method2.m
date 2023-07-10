@@ -107,10 +107,20 @@ a21     =  1.008e-4;
 %       i.e. => P( 1, 1, 300 ) == SISO with 300 TFs
 %
 n_Plants = grid_k11*grid_a11*grid_k22*grid_a22;     % Number of plants
-p11 = tf( zeros(1,1,n_Plants) );                    % Pre-allocate memory
-p12 = tf( zeros(1,1,n_Plants) );                    % Pre-allocate memory
-p21 = tf( zeros(1,1,n_Plants) );                    % Pre-allocate memory
-p22 = tf( zeros(1,1,n_Plants) );                    % Pre-allocate memory
+
+p11     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
+p12     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
+p21     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
+p22     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
+
+Pw      = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
+P       = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
+
+Pdiag   = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
+Pinv    = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
+PinvPdiag = tf( zeros(2,2,n_Plants) );              % Pre-allocate memory
+
+gain_PinvPdiag = zeros( size(PinvPdiag) );          % Pre-allocate memory
 
 % [INFO] ...
 fprintf( 'Step 1:' );
@@ -130,14 +140,50 @@ for var1 = 1:grid_k11                               % Loop over k11
                 a22 = a22_g( var4 );                % ....
                 
                 % --- Here we create the plant TF
-                p11(:, :, NDX) = tf( k11        , ...
+                p11_NDX        = tf( k11        , ...
                                     [1/a11, 1] );
-                p12(:, :, NDX) = tf( k12*conv([1/z12_1, 1], [1/z12_2, 1]), ...
-                                     conv([1/a12  , 1], [1/wn12^2, (2*zeta12/wn12)^2, 1]) );
-                p21(:, :, NDX) = tf( k21        , ...
+                p11(:, :, NDX) = p11_NDX;
+                
+                p12_NDX        = tf( k12*conv([1/z12_1, 1], [1/z12_2, 1]), ...
+                                     conv([1/a12  , 1], [1/wn12^2, (2*zeta12/wn12), 1]) );
+                p12(:, :, NDX) = p12_NDX;
+                
+                p21_NDX        = tf( k21        , ...
                                     [1/a21, 1] );
-                p22(:, :, NDX) = tf( k22        , ...
+                p21(:, :, NDX) = p21_NDX;
+                
+                p22_NDX        = tf( k22        , ...
                                     [1/a22, 1] );
+                p22(:, :, NDX) = p22_NDX;
+                
+                % --- Place them all in one big matrix
+                % ***NOTE:
+                %   Pw( 1, 1,  1, : ) ==> p11 / 1st  variation (i.e. p11(:,:,1))
+                %   Pw( 2, 1, 65, : ) ==> p21 / 65th variation (i.e. p21(:,:,65))
+                Pw(:, :, NDX) = [ p11_NDX, p12_NDX  ;
+                                  p21_NDX, p22_NDX ];
+
+                % --- EXTRA STEP: modify Pw(s) as per the problem requirement
+                % Add low-ass filter
+                f_LP      = tf( 1, [1/(1.1e-4)^2, 2/(1.1e-4), 1 ] );
+
+                % --- Generate modified plants
+                P(:, :, NDX) = Pw(:, :, NDX).*f_LP;
+
+                % --- Generate diagonal matrix, Pdiag(s)
+                Pdiag(:, :, NDX) = [ P(1, 1, NDX) ,       0       ;
+                                           0      , P(2, 2, NDX) ];
+
+                % --- Generate inverted matrix, Pinv(s)
+                % Pinv(:, :, NDX) = inv(P(:, :, NDX));
+                Pinv(:, :, NDX) = minreal( inv(P(:, :, NDX)) );
+
+                % --- Generate temporary G_α(s) = Pinv(s) * Pdiag(S)
+                PinvPdiag(:, :, NDX) = Pinv(:, :, NDX) * Pdiag(:, :, NDX);
+                PinvPdiag(:, :, NDX) = minreal( PinvPdiag(:, :, NDX), 0.01 );
+
+                % --- Get the DC gain
+                gain_PinvPdiag(:, :, NDX) = dcgain( PinvPdiag(:, :, NDX) );
 
                 NDX = NDX + 1;                      % Increment counter
             end
@@ -145,23 +191,20 @@ for var1 = 1:grid_k11                               % Loop over k11
     end
 end
 
-% --- Place them all in one big matrix
-% ***NOTE:
-%   Pw( 1, 1,  1, : ) ==> p11 / 1st  variation (i.e. p11(:,:,1))
-%   Pw( 2, 1, 65, : ) ==> p21 / 65th variation (i.e. p21(:,:,65))
-%
-Pw = [ p11, p12 ;
-       p21, p22 ];
-
-
-% --- EXTRA STEP: modify Pw(s) as per the problem requirement
-% Add low-ass filter
-f_LP      = tf( 1, [1/(1.1e-4)^2, 2/(1.1e-4), 1 ] );
-% Generate modified plants
-P = Pw.*f_LP;
-
 % [INFO] ...
 fprintf( ACK );
+
+% figure(); bode( PinvPdiag(1,1,:,:), [logspace(-6, -3)] ); grid on;
+% title( 'PinvPdiag_{11}' ); make_nice_plot();
+% 
+% figure(); bode( PinvPdiag(1,2,:,:), [logspace(-6, -3)] ); grid on;
+% title( 'PinvPdiag_{12}' ); make_nice_plot();
+% 
+% figure(); bode( PinvPdiag(2,1,:,:), [logspace(-6, -3)] ); grid on;
+% title( 'PinvPdiag_{21}' ); make_nice_plot();
+% 
+% figure(); bode( PinvPdiag(2,2,:,:), [logspace(-6, -3)] ); grid on;
+% title( 'PinvPdiag_{22}' ); make_nice_plot();
 
 %% Step 2: The Nominal Plant
 
@@ -179,8 +222,13 @@ k22_0 = mean( [min_k22, max_k22] );
 a22_0 = mean( [min_a22, max_a22] );
 
 p11_0 = tf( k11_0, [1/a11_0, 1] );
+% syms s;
+% num = sym2poly( k12 * (s/z12_1 + 1) * (s/z12_2 + 1) );
+% den = sym2poly( (s/a12 + 1) * ((s/wn12)^2 + (2*zeta12/wn12)*s + 1) );
+% p12_0 = tf( num, den );
+% clear s
 p12_0 = tf( k12*conv([1/z12_1, 1], [1/z12_2, 1]), ...
-            conv([1/a12  , 1], [1/wn12^2, (2*zeta12/wn12)^2, 1]) );
+            conv([1/a12  , 1], [1/wn12^2, (2*zeta12/wn12), 1]) );
 p21_0 = tf( k21, [1/a21, 1] );
 p22_0 = tf( k22_0, [1/a22_0, 1] );
 
@@ -203,7 +251,7 @@ fprintf( ACK );
 w = logspace( -7, -2, 1024 );
 [p0, theta0] = bode( P0, w );
 
-if( PLOT )
+if( ~PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, '-', P0, '.r', w(1:32:end) ); grid on;
     make_nice_plot();
@@ -566,31 +614,32 @@ wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 % [INFO] ...
 fprintf( '\t> Computing G_alpha(s)...' );
 
-% --- Generate diagonal matrix
-P_diag  = tf( zeros(size(P)) );             % Pre-allocate memory
-for ii  = 1:width( P )
-    P_diag( ii, ii, :, : )  = P( ii, ii, :, : );
-end
-
-% --- Compute the gain of all elements in P^1(s) * P_diag(s)
-TOL = 0.01;                                 % Tolerance for cancellation
-PinvPdiag = minreal( P \ P_diag, TOL );     % Compute P^-1*P_diag
-
-gain_PinvPdiag = zeros( size(P) );          % Pre-allocate memory
-for ROW = 1:width( PinvPdiag )              % Loop over ROWS
-    for COL = 1:width( PinvPdiag )          % Loop over COLS
-        for NDX = 1:n_Plants                % Loop over variations
-            
-            % Get the n-th plant
-            nth_Plant = PinvPdiag(ROW, COL, NDX, :);
-            % Compute DC gain
-            kP = dcgain( nth_Plant );
-            % Store in a matrix
-            gain_PinvPdiag(ROW, COL, NDX, :) = kP;
-
-        end  
-    end
-end
+% % --- Generate diagonal matrix
+% P_diag  = tf( zeros(size(P)) );             % Pre-allocate memory
+% for ii  = 1:width( P )
+%     P_diag( ii, ii, :, : )  = P( ii, ii, :, : );
+% end
+% 
+% % --- Compute the gain of all elements in P^1(s) * P_diag(s)
+% TOL = 0.01;                                 % Tolerance for cancellation
+% Pinv      = inv( P );                       % Compute P^-1
+% PinvPdiag = minreal( Pinv * P_diag, TOL );  % Compute P^-1*P_diag
+% 
+% gain_PinvPdiag = zeros( size(P) );          % Pre-allocate memory
+% for ROW = 1:width( PinvPdiag )              % Loop over ROWS
+%     for COL = 1:width( PinvPdiag )          % Loop over COLS
+%         for NDX = 1:n_Plants                % Loop over variations
+% 
+%             % Get the n-th plant
+%             nth_Plant = PinvPdiag(ROW, COL, NDX, :);
+%             % Compute DC gain
+%             kP = dcgain( nth_Plant );
+%             % Store in a matrix
+%             gain_PinvPdiag(ROW, COL, NDX, :) = kP;
+% 
+%         end  
+%     end
+% end
 
 % --- Compute the mean value
 NROWS = width( gain_PinvPdiag );
@@ -600,7 +649,7 @@ for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
     for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
 
         meanGain_PinvPdiag(ROW, COL) = mean( gain_PinvPdiag(ROW, COL, :) );
-    
+
     end
 end
 
@@ -639,7 +688,11 @@ if( ~PLOT )
             figure(); bode( PinvPdiag(ROW, COL, :, :), wl );  grid on;
             hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
             bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
-            title(['Bode plot of g_{' num2str(ROW) num2str(COL) '}(s)']);
+            
+            text_1 = [ 'p*_{' num2str(ROW) num2str(COL) '}(s)' ];
+            text_2 = [  'p_{' num2str(COL) num2str(COL) '}(s)' ];
+            text_3 = [  'g_{' num2str(ROW) num2str(COL) '}(s)' ];
+            title( [text_1 ' \times ' text_2 ' and ' text_3] );
             make_nice_plot();
         end
     end
@@ -706,10 +759,10 @@ else
 end
 
 % Start loopshaping GUI
-L11 = qx11( 1, 1, nompt );                          % Desired loop
-L11.ioDelay = 0;                                    % No delay
-lpshape( wl, ubdb(:, :, 1), L11, g11_b );
-qpause;
+% L11 = qx11( 1, 1, nompt );                          % Desired loop
+% L11.ioDelay = 0;                                    % No delay
+% lpshape( wl, ubdb(:, :, 1), L11, g11_b );
+% qpause;
 
 % Compute qx_22
 qx22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
