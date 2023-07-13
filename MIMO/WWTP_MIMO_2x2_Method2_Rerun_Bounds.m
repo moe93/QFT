@@ -175,7 +175,6 @@ for var1 = 1:grid_k11                               % Loop over k11
                                            0      , P(2, 2, NDX) ];
 
                 % --- Generate inverted matrix, Pinv(s)
-                % Pinv(:, :, NDX) = inv(P(:, :, NDX));
                 Pinv(:, :, NDX) = minreal( inv(P(:, :, NDX)) );
 
                 % --- Generate temporary G_α(s) = Pinv(s) * Pdiag(S)
@@ -190,6 +189,12 @@ for var1 = 1:grid_k11                               % Loop over k11
         end
     end
 end
+
+% PP = Pw;
+% for ii = 1:2
+%     for jj =1:2
+%         for kk = 1:
+%         PP(ii, jj, )
 
 % [INFO] ...
 fprintf( ACK );
@@ -416,146 +421,6 @@ end
 % [INFO] ...
 fprintf( ACK );
 
-%% Step 6: Calculate Staibility QFT Bounds
-
-% --- Example 2.1 continued (Pg. 36)
-%   - Type 1: Stability specification
-%       > Corresponds to sisobnds( 1, ... )
-%   - Type 3    //
-%       > Corresponds to sisobnds( 2, ... )
-%   - Type 6    //
-%       > Corresponds to sisobnds( 7, ... )
-%
-
-% --------------------------------------------------
-% ----      Type 1: Stability specification     ----
-% --------------------------------------------------
-spec = 1;
-
-% [INFO] ...
-fprintf( 'Step 6:' );
-fprintf( '\tCalculating stability QFT bounds\n' );
-fprintf( '\tComputing bounds: ' );
-fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
-fprintf( '\t\t > ' );
-
-% --- Compute bounds
-for i=1:width(P)
-    p_ii = P( i, i, :, : );
-    bdb1(:, :, i) = sisobnds( spec, omega_1, del_1, p_ii, [], nompt );
-    % R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
-    
-    if( PLOT )
-        % [INFO] ...
-        fprintf( 'Plotting bounds...' );
-        
-        % --- Plot bounds
-        plotbnds( bdb1(:, :, i) );
-        txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
-        title( txt );
-        % xlim( [-360 0] ); ylim( [-10 30] );
-        make_nice_plot();
-    end
-end
-% [INFO] ...
-fprintf( ACK );
-
-%% Step 7: Calculate Performance QFT Bounds
-
-% -------------------------------------------
-% ---- Type 3: Sensitivity specification ----
-% -------------------------------------------
-spec = 2;
-
-% [INFO] ...
-fprintf( '\tComputing bounds: ' );
-fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
-fprintf( '\t\t > ' );
-
-% --- Compute bounds
-for i=1:width(P)
-    p_ii = P( i, i, :, : );
-    bdb2(:, :, i) = sisobnds( spec, omega_3, del_3, p_ii, [], nompt );
-    
-    if( PLOT )
-        % [INFO] ...
-        fprintf( 'Plotting bounds...' );
-        
-        % --- Plot bounds
-        plotbnds( bdb2(:, :, i) );
-        txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
-        title( txt );
-        make_nice_plot();
-    end
-end
-% [INFO] ...
-fprintf( ACK );
-
-% --------------------------------------------------
-% ---- Type 6: Reference tracking specification ----
-% --------------------------------------------------
-spec = 7;
-
-% [INFO] ...
-fprintf( '\tComputing bounds: ' );
-fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
-fprintf( '\t\t > ' );
-
-% --- Compute bounds
-for i=1:width(P)
-    p_ii = P( i, i, :, : );
-    bdb7(:, :, i) = sisobnds( spec, omega_6, del_6, p_ii, [], nompt );
-    
-    if( PLOT )
-        % [INFO] ...
-        fprintf( 'Plotting bounds...' );
-        
-        % --- Plot bounds
-        plotbnds( bdb7(:, :, i) );
-        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
-        title( txt );
-        make_nice_plot();
-    end
-end
-
-% [INFO] ...
-fprintf( ACK );
-
-%% Step 8: Intersection of QFT Bounds and Compatibility
-
-% [INFO] ...
-fprintf( 'Step 8:' );
-fprintf( '\tGrouping bounds...' );
-
-% --- Grouping bounds
-for i=1:width(P)
-    bdb( :, :, i ) = grpbnds( bdb1(:,:,i), bdb2(:,:,i), bdb7(:,:,i) );
-    if( PLOT )
-        plotbnds( bdb( :, :, i ) );
-        txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
-        title( txt );
-        make_nice_plot();
-    end
-end
-
-% [INFO] ...
-fprintf( ACK );
-fprintf( '\tIntersection of bounds...' );
-
-for i=1:width(P)    
-    % --- Find bound intersections
-    ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
-    if( PLOT )
-        plotbnds( ubdb( :, :, i ) );
-        txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
-        title( txt );
-        make_nice_plot();
-    end
-end
-
-% [INFO] ...
-fprintf( ACK );
-
 %% Step 9.1: Synthesize Feedback Controller G_α(s)
 
 % --- The fully populated matrix controller G(s) is composed of two
@@ -701,21 +566,25 @@ end
 % controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
 % qpause;
 g11_a = tf( 0.0001429, [1 0.00015] );       % Updated controller
+g11_a = tf( 0.9439   , [7143 1]    );       % Dr. Garcia controller
 
 % g12_a = minreal( G_alpha(1, 2), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g12_a );  % Loop-shape
 % qpause;
 g12_a = tf( -3.6064e-08, [1 0.00015] );     % Updated controller
+g12_a = tf( -18.58e-5  , [7143 1]    );      % Dr. Garcia controller
 
 % g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g21_a );  % Loop-shape
 % qpause;
 g21_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+g21_a = tf( 1382  , [7143 1]    );       % Dr. Garcia controller
 
 % g22_a = minreal( G_alpha(2, 2), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g22_a );  % Loop-shape
 % qpause;
 g22_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+g22_a = tf( 0.9439   , [7143 1]    );       % Dr. Garcia controller
 
 G_alpha = [ g11_a, g12_a ;
             g21_a, g22_a ];
@@ -751,8 +620,9 @@ fprintf( '\t> Computing G_beta(s)...' );
 % Px = minreal( P * G_alpha, 0.1 );                   % Extended matrix
 % Px_star = minreal( inv(Px), 0.1 );                  % Invert extended matrix
 Px      = minreal( P * G_alpha );                   % Extended matrix
+% Px      = P * G_alpha;                              % Extended matrix
 Pxinv   = inv( Px ) ;                               % Invert extended matrix
-
+%%
 % --- Sequential desgin (loop-shape) gbeta_ii(s), where
 %
 %       > g_ij(s)  = 0 for i != j
@@ -769,12 +639,12 @@ Pxinv   = inv( Px ) ;                               % Invert extended matrix
 %
 
 % qx11 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
-% qx11( 1, 1, : ) = 1/Pxinv( 1, 1, : );             % Initialize
+qx11( 1, 1, : ) = 1/Pxinv( 1, 1, : );             % Initialize
 
-clear qx111;
-for ii = 1:length(Pxinv)
-    qx111(1, 1, ii) = 1/Pxinv( 1, 1, ii );
-end
+% clear qx111;
+% for ii = 1:length(Pxinv)
+%     qx111(1, 1, ii) = 1/Pxinv( 1, 1, ii );
+% end
 
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
@@ -796,7 +666,7 @@ else
 end
 
 % Start loopshaping GUI
-L11 = qx11( 1, 1, nompt );                          % Desired loop
+% L11 = qx11( 1, 1, nompt );                          % Desired loop
 % L11.ioDelay = 0;                                    % No delay
 % lpshape( wl, ubdb(:, :, 1), L11, g11_b );
 % qpause;
@@ -804,44 +674,53 @@ L11 = qx11( 1, 1, nompt );                          % Desired loop
 % --- Loopshape g22_b(s) controller over L22(s) = qx22(s) * g22_b(s)
 
 % Compute qx_22
-% qx22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
-% px22 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
-clear px22 qx22;
-NDX = 1;                                            % Plant counter
-for var1 = 1:grid_k11                               % Loop over k11
-
-    for var2 = 1:grid_a11                           % Loop over a11
-
-        for var3 = 1:grid_k22                       % Loop over k22
-
-            for var4 = 1:grid_a22                   % Loop over a22
-
-                % --- Use sequential method
-                gg = Pxinv(2, 2, NDX) - ...
-                     (Pxinv(2, 1, NDX) * Pxinv(1, 2, NDX)) / ...
-                     (Pxinv(1, 1, NDX) + g11_b);
-                px22( NDX ) = minreal( gg, 0.01 );
-
-                NDX = NDX + 1;                      % Increment counter
-            end
-        end
-    end
-end
-
-for ii = 1:n_Plants
-    qx22( 1, 1, ii ) = 1/px22( ii );
-end
-
-% px222 = tf( zeros(size(Pxinv)) );
-% for ii = 2:2
-%     % --- Use sequential method
-%     gg = Pxinv(ii, ii, :) - ...
-%          ((Pxinv(ii, ii-1, :) * Pxinv(ii-1, ii, :)) / ...
-%          (Pxinv(ii-1, ii-1, :) + g11_b));
-%     px222( ii, ii, : ) = minreal( gg, 0.01 );
-%     % px22( ii, ii, : ) = minreal( gg, 1 );
+% px22 = tf( zeros(1, 1, length(Pxinv)) );
+% qx22 = tf( zeros(1, 1, length(Pxinv)) );
+% NDX = 1;                                            % Plant counter
+% for var1 = 1:grid_k11                               % Loop over k11
+% 
+%     for var2 = 1:grid_a11                           % Loop over a11
+% 
+%         for var3 = 1:grid_k22                       % Loop over k22
+% 
+%             for var4 = 1:grid_a22                   % Loop over a22
+% 
+%                 % --- Use sequential method
+%                 gg = Pxinv(2, 2, NDX) - ...
+%                      ( (Pxinv(2, 1, NDX) * Pxinv(1, 2, NDX)) / ...
+%                        (Pxinv(1, 1, NDX) + g11_b) );
+%                 px22( 1, 1, NDX ) = minreal( gg, 0.01 );
+% 
+%                 NDX = NDX + 1;                      % Increment counter
+%             end
+%         end
+%     end
 % end
-% qx22( 2, 2, : ) = 1/px222( 2, 2, : );
+% 
+% for ii = 1:n_Plants
+%     qx22( 1, 1, ii ) = 1/px22( 1, 1, ii );
+% end
+
+px22 = tf( zeros(1, 1, length(Pxinv)) );
+qx22 = tf( zeros(1, 1, length(Pxinv)) );
+for ii = 2:2
+    % --- Use sequential method
+    gg = Pxinv(ii, ii, :) - ...
+         ((Pxinv(ii, ii-1, :) * Pxinv(ii-1, ii, :)) / ...
+         (Pxinv(ii-1, ii-1, :) + g11_b));
+    px22( 1, 1, : ) = minreal( gg, 0.01 );
+end
+qx22( 1, 1, : ) = 1/px22( 1, 1, : );
+
+% --- Cleanup transfer function by removing values below 1e-10
+% for ii = 1:length( px22 )
+%     qx22( 1, 1, ii ) = 1/px22( 1, 1, ii );
+% 
+%     [n, d] = tfdata(px22( 1, 1, ii ));
+%     n = cellfun(@(x) {x.*(x>1e-16)}, n);
+%     d = cellfun(@(x) {x.*(x>1e-16)}, d);
+%     qx22( 1, 1, ii ) = 1/tf(n, d);
+% end
 
 % --- Controller, G(s)
 G_file  = [ src 'g22_b.shp' ];
@@ -858,9 +737,153 @@ else
     g22_b = tf( num, den );                         % Eq.(CS3.29)
 end
 
+Q = {qx11; qx22};
+
+
+%% Step 6: Calculate Staibility QFT Bounds
+
+% --- Example 2.1 continued (Pg. 36)
+%   - Type 1: Stability specification
+%       > Corresponds to sisobnds( 1, ... )
+%   - Type 3    //
+%       > Corresponds to sisobnds( 2, ... )
+%   - Type 6    //
+%       > Corresponds to sisobnds( 7, ... )
+%
+
+% --------------------------------------------------
+% ----      Type 1: Stability specification     ----
+% --------------------------------------------------
+spec = 1;
+
+% [INFO] ...
+fprintf( 'Step 6:' );
+fprintf( '\tCalculating stability QFT bounds\n' );
+fprintf( '\tComputing bounds: ' );
+fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
+fprintf( '\t\t > ' );
+
+% --- Compute bounds
+for i=1:2
+    p_ii = Q{ i };
+    bdb1(:, :, i) = sisobnds( spec, omega_1, del_1, p_ii, [], nompt );
+    % R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
+
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+
+        % --- Plot bounds
+        plotbnds( bdb1(:, :, i) );
+        txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        % xlim( [-360 0] ); ylim( [-10 30] );
+        make_nice_plot();
+    end
+end
+% [INFO] ...
+fprintf( ACK );
+
+%% Step 7: Calculate Performance QFT Bounds
+
+% -------------------------------------------
+% ---- Type 3: Sensitivity specification ----
+% -------------------------------------------
+spec = 2;
+
+% [INFO] ...
+fprintf( '\tComputing bounds: ' );
+fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
+fprintf( '\t\t > ' );
+
+% --- Compute bounds
+for i=1:2
+    p_ii = Q{ i };
+    bdb2(:, :, i) = sisobnds( spec, omega_3, del_3, p_ii, [], nompt );
+
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+
+        % --- Plot bounds
+        plotbnds( bdb2(:, :, i) );
+        txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
+end
+% [INFO] ...
+fprintf( ACK );
+
+% --------------------------------------------------
+% ---- Type 6: Reference tracking specification ----
+% --------------------------------------------------
+spec = 7;
+
+% [INFO] ...
+fprintf( '\tComputing bounds: ' );
+fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
+fprintf( '\t\t > ' );
+
+% --- Compute bounds
+for i=1:2
+    p_ii = Q{ i };
+    bdb7(:, :, i) = sisobnds( spec, omega_6, del_6, p_ii, [], nompt );
+
+    if( PLOT )
+        % [INFO] ...
+        fprintf( 'Plotting bounds...' );
+
+        % --- Plot bounds
+        plotbnds( bdb7(:, :, i) );
+        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
+end
+
+% [INFO] ...
+fprintf( ACK );
+
+%% Step 8: Intersection of QFT Bounds and Compatibility
+
+% [INFO] ...
+fprintf( 'Step 8:' );
+fprintf( '\tGrouping bounds...' );
+
+% --- Grouping bounds
+for i=1:2
+    bdb( :, :, i ) = grpbnds( bdb1(:,:,i), bdb2(:,:,i), bdb7(:,:,i) );
+    if( PLOT )
+        plotbnds( bdb( :, :, i ) );
+        txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
+end
+
+% [INFO] ...
+fprintf( ACK );
+fprintf( '\tIntersection of bounds...' );
+
+for i=1:2 
+    % --- Find bound intersections
+    ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
+    if( ~PLOT )
+        plotbnds( ubdb( :, :, i ) );
+        txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
+        title( txt );
+        make_nice_plot();
+    end
+end
+
+% [INFO] ...
+fprintf( ACK );
+
+%% <<<<<<<<<<<<<<<<<<<<<<                >>>>>>>>>>>>>>>>>>>>>>
+
 % Start loopshaping GUI
-L22 = qx22( 1, 1, 1 );                          % Desired loop
-% L22 = qx22( 2, 2, 1 );                          % Desired loop
+L22 = qx22( 1, 1, nompt );                          % Desired loop
 L22.ioDelay = 0;                                    % No delay
 lpshape( wl, ubdb(:, :, 2), L22, g22_b );
 % qpause;
@@ -874,3 +897,47 @@ fprintf( ACK );
 % --- Loopshape pre-filters
 f11 = tf( [1/20 1], [1/2 1] ); % Eq.(8.184)
 f22 = tf( [1/20 1], [1/2 1] ); % Eq.(8.188)
+
+
+%% Symbolic approach
+
+syms s;
+
+syms k11 a11;
+syms k22 a22;
+syms k12 z12_1 z12_2 a12 wn12 zeta12;
+syms k21 a21;
+
+
+p11_syms = k11 / ( s/a11 + 1 );
+
+p12_syms = k12 * ( s/z12_1 + 1 ) * (s/z12_2 + 1 ) / ...
+                (( s/a12 + 1) * ( (s/wn12)^2 + (2*zeta12/wn12)*s + 1 ));
+
+p21_syms = k21 / ( s/a21 + 1 );
+
+p22_syms = k22 / ( s/a22 + 1 );
+
+Pw_syms = [ p11_syms, p12_syms ;
+            p21_syms, p22_syms];
+
+% --- EXTRA STEP: modify Pw(s) as per the problem requirement
+% Add low-ass filter
+f_LP      = 1 / ( (s/1.1e-4)^2 + 2*s/(1.1e-4) + 1  );
+
+% --- Generate modified plants
+P_syms = Pw_syms.*f_LP;
+
+% --- Generate diagonal matrix, Pdiag(s)
+Pdiag_syms = [ P_syms( 1 ) ,    0         ;
+                  0        , P_syms( 2 ) ];
+
+% --- Generate inverted matrix, Pinv(s)
+Pinv_syms = inv( P_syms );
+
+% --- Generate temporary G_α(s) = Pinv(s) * Pdiag(S)
+PinvPdiag_syms = simplify( Pinv_syms * Pdiag_syms );
+
+% % --- Get the DC gain
+% gain_PinvPdiag(:, :, NDX) = dcgain( PinvPdiag(:, :, NDX) );
+
