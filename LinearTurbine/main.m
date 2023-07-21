@@ -87,46 +87,28 @@ sys         = ss( A, B, C, D                , ...
                   'StateName' , stateNames  , ...
                   'InputName' , inputNames  , ...
                   'OutputName', outputNames );
-
 % --- Generate TF from SS model
 TF = tf( sys );
 
-%% DOUBLE CHECK
-% Generate SS model using analytical approach
+%% Manaully construct SISO
 
-M_0 = 0.5   ;                   % Mass of cart                  [  kg  ]
-m_0 = 0.2   ;                   % Mass of rod                   [  kg  ]
-b_0 = 0.1   ;                   % Co-efficient of friction
-I_0 = 0.006 ;                   % 2nd mass moment of inertia    [kg.m^2]
-g_0 = 9.80665 ;                 % Gravitational acceleration    [m.s^-2]
-l_0 = 0.6/2 ;                   % Half the rod length           [  m   ]
+A3 = [ -0.076995 ];
+B3 = [ -1.535 ].';
+C3 = [ 1 ];
+D3 = 0;
 
-p = I_0*(M_0+m_0)+M_0*m_0*l_0^2;    % Denominator for the A and B matrices
-
-A_theory = [ 0              1                       0               0   ;
-             0  -(I_0+m_0*l_0^2)*b_0/p  (m_0^2*g_0*l_0^2)/p         0   ;
-             0              0                       0               1   ;
-             0  -(m_0*l_0*b_0)/p        m_0*g_0*l_0*(M_0+m_0)/p     0 ] ;
-B_theory = [        0            ;
-             (I_0+m_0*l_0^2)/p   ;
-                    0            ;
-                m_0*l_0/p       ];
-C_theory = [ 1  0   0   0  ;
-             0  0  -1   0 ];
-D_theory = [ 0  ;
-             0 ];
-
-states = {'x' 'x_dot' 'phi' 'phi_dot'};
-inputs = {'u'};
-outputs = {'x'; 'phi'};
-
-sys_theory = ss( A_theory, B_theory, C_theory, D_theory , ...
-                 'StateName'    ,   stateNames          , ...
-                 'InputName'    ,   inputNames          , ...
-                 'OutputName'   ,   outputNames );
-
+% --- Generate state-space model
+% States and inputs names
+stateNames  = [ "omega" ];
+inputNames  = [ "u_pitch" ];
+outputNames = [ "omega" ];
+% State-space model
+sys3         = ss( A3, B3, C3, D3           , ...
+                  'StateName' , stateNames  , ...
+                  'InputName' , inputNames  , ...
+                  'OutputName', outputNames );
 % --- Generate TF from SS model
-TF_theory = tf( sys_theory );
+TF3 = tf( sys3 );
 
 %% Step 1: Plant Modeling & Uncertainty
 
@@ -135,22 +117,17 @@ TF_theory = tf( sys_theory );
 %   max_    : Maximum value
 %   grid_   : Gridding
 %
+w_0     = A3;
 loVal   = 0.95;             % min_ val is 95%  of nominal
 hiVal   = 1.05;             % max_ val is 105% of nominal
-min_M   = M_0*loVal;    max_M   = M_0*hiVal;    grid_M  = 5;
-min_m   = m_0*loVal;    max_m   = m_0*hiVal;    grid_m  = 3;
-min_b   = b_0*loVal;    max_b   = b_0*hiVal;    grid_b  = 5;
-min_I   = I_0*loVal;    max_I   = I_0*hiVal;    grid_I  = 4;
+min_w   = w_0*loVal;    max_w   = w_0*hiVal;    grid_w  = 5;
 
 
 % --- Gridding
 %   ***NOTE: Can grid using logspace() or linspace()
 %   _g  : Gridded variable
 %
-M_g = logspace( log10(min_M)    ,   log10(max_M)    ,   grid_M );
-m_g = logspace( log10(min_m)    ,   log10(max_m)    ,   grid_m );
-b_g = logspace( log10(min_b)    ,   log10(max_b)    ,   grid_b );
-I_g = logspace( log10(min_I)    ,   log10(max_I)    ,   grid_I );
+w_g = logspace( log10(min_w)    ,   log10(max_w)    ,   grid_w );
 
 
 % --- Plant generation
@@ -161,69 +138,34 @@ I_g = logspace( log10(min_I)    ,   log10(max_I)    ,   grid_I );
 %
 %       i.e. => P( 1, 1, 300 ) == SISO with 300 TFs
 %
-n_Plants = grid_M*grid_m*grid_b*grid_I;             % Number of plants
-P_y1 = tf( zeros(1,1,n_Plants) );                   % Pre-allocate memory
-P_y2 = tf( zeros(1,1,n_Plants) );                   % Pre-allocate memory
+n_Plants = grid_w;                                  % Number of plants
+P = tf( zeros(1,1,n_Plants) );                      % Pre-allocate memory
 
 % [INFO] ...
 fprintf( 'Step 1:' );
 fprintf( '\tComputing QFT templates using %3i plants...', n_Plants );
 
-l = l_0;                                            % Length  is nominal
-g = g_0;                                            % Gravity is nominal
 NDX = 1;                                            % Plant counter
-for var1 = 1:grid_M                                 % Loop over M
-    M = M_g( var1 );                                % ....
+for var1 = 1:grid_w                                 % Loop over w
+    w = w_g( var1 );                                % ....
 
-    for var2 = 1:grid_m                             % Loop over m
-        m = m_g( var2 );                            % ....
+    % --- Here we create the plant TF
+    A_g = [ w ] ;
+    B_g = [ B3(1) ];
+    C_g = [ C3(1) ];
+    D_g = [ D3(1) ];
 
-        for var3 = 1:grid_b                         % Loop over b
-            b = b_g( var3 );                        % ...
-
-            for var4 = 1:grid_I                     % Loop over I
-                I = I_g( var4 );                    % ...
-
-                % --- Here we create the plant TF
-                A_g = [ 0      1               0           0   ;
-                        0  -(I+m*l^2)*b/p  (m^2*g*l^2)/p   0   ;
-                        0      0               0           1   ;
-                        0  -(m*l*b)/p       m*g*l*(M+m)/p  0 ] ;
-                B_g = [     0       ;
-                        (I+m*l^2)/p ;
-                            0       ;
-                            m*l/p  ];
-                C_g = [ 1 0 0 0  ;
-                        0 0 -1 0 ];
-                D_g = [ 0  ;
-                        0 ];
-
-                % --- Generate grided TF from grided SS model
-                sys_g = ss( A_g, B_g, C_g, D_g              , ...
-                            'StateName'    ,   stateNames   , ...
-                            'InputName'    ,   inputNames   , ...
-                            'OutputName'   ,   outputNames );
-                TF_g = tf( sys_g );
-                P_y1(:, :, NDX) = TF_g(1);      % Transfer Function
-                P_y2(:, :, NDX) = TF_g(2);      % Transfer Function
-                NDX = NDX + 1;                              % Incerement counter
-            end
-        end
-    end
+    % --- Generate grided TF from grided SS model
+    sys_g = ss( A_g, B_g, C_g, D_g );
+    TF_g = tf( sys_g );
+    P(:, :, NDX) = TF_g(1);         % Transfer Function
+    NDX = NDX + 1;                  % Incerement counter
 end
 
 % [INFO] ...
 fprintf( ACK );
 
 %% Step 2: The Nominal Plant
-
-% --- Re-state those variables just in case we forgot
-% M_0 = 2000.0  ;                   % Mass of cart                  [  kg  ]
-% m_0 = 375.00  ;                   % Msas of rod                   [  kg  ]
-% b_0 = 0.2000  ;                   % Co-efficient of friction
-% I_0 = 1126.95 ;                   % 2nd mass moment of inertia    [kg.m^2]
-% g_0 = 9.80665 ;                   % Gravitational acceleration    [m.s^-2]
-% l_0 = 6/2     ;                   % Half the rod length           [  m   ]
 
 % [INFO] ...
 fprintf( 'Step 2:' );
@@ -233,16 +175,11 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-P_y10(1, 1, 1) = TF_theory(1);          % Nominal Transfer Function
-P_y20(1, 1, 1) = TF_theory(2);          % Nominal Transfer Function
+P0(1, 1, 1) = TF3;                      % Nominal Transfer Function
 
 % --- Append to the end of the gridded plants
-P_y1( 1, 1, end+1 ) = P_y10;
-P_y2( 1, 1, end+1 ) = P_y20;
+P( 1, 1, end+1 ) = P0;
 
-% --- Select which I/O pair we want to work with
-P   = P_y2  ;                           % This corresponds to gridded x/Fx
-P_0 = P_y20 ;                           % This corresponds to nominal x/Fx
 % --- Define nominal plant case
 nompt = length( P );
 
@@ -250,17 +187,17 @@ nompt = length( P );
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( -4, 3 );
+w = logspace( log10(0.0001), log10(100), 1024 );
 figure( CNTR ); CNTR = CNTR + 1;
-bode( P_0, w ); grid on;
-[p0, theta0] = bode( P_0, w );
+bode( P0, w ); grid on;
+[p0, theta0] = bode( P0, w );
 
 make_nice_plot();
 
 % --- Plot root locus
 figure( CNTR ); CNTR = CNTR + 1;
-rlocus( P_0 );
-title('Root Locus of Plant (under Proportional Control)')
+rlocus( P0 );
+title('Root Locus of Plant')
 
 make_nice_plot();
 
@@ -272,7 +209,7 @@ fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
 % w = linspace( 1e1, 1e3, 10 );
-w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 1e3 ];
+w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
 
 % --- Plot QFT templates
 plottmpl( w, P, nompt );
@@ -282,7 +219,7 @@ hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
 set( hLegend, 'location', 'southeast' );    % Access and change location
 
 % --- Change plot limits
-xmin = -25; xmax = 10; dx = 5;
+% xmin = -25; xmax = 10; dx = 5;
 % xlim( [xmin xmax] );
 % xticks( xmin:dx:xmax )
 title( 'Plant Templates' )
@@ -311,7 +248,7 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 1e3 ];
+omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
 % Restriction
 W_s         = 1.08;
 del_1       = W_s;
@@ -319,7 +256,7 @@ PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
 GM          = 20*log10( 1+1/W_s );                   % In dB
 
 % [INFO] ...
-fprintf( '\t\t > PM = %2.2f deg, GM = %2.2f dB', PM, GM );
+fprintf( '\t\t > PM = %2.2f deg, GM = %2.2f dB\n', PM, GM );
 fprintf( '\t\t > ' );
 fprintf( ACK );
 
@@ -458,8 +395,8 @@ fprintf( 'Step 8:' );
 fprintf( '\tGrouping bounds...' );
 
 % --- Grouping bounds
-bdb = grpbnds( bdb1, bdb2 );
-% bdb = grpbnds( bdb1, bdb2, bdb7 );
+% bdb = grpbnds( bdb1, bdb2 );
+bdb = grpbnds( bdb1, bdb2, bdb7 );
 plotbnds(bdb); 
 title('All Bounds');
 
@@ -481,21 +418,25 @@ fprintf( ACK );
 fprintf( 'Step 9:' );
 fprintf( '\tSynthesize G(s)...' );
 
-% --- Design TF of G(s)
-syms s;
-num = sym2poly( 250*(s/1 + 1)*(s/1000 + 1)  );      % Get coefficients
-den = sym2poly( s*(s/5 + 1)*(s/1000 + 1));          % ...
-clear s;
-% syms s;
-% num = sym2poly( 1000*(s/55 + 1)*(s/1700 + 1)  );  % Get coefficients
-% den = sym2poly( s*(s/25000 + 1)               );  % ...
-% clear s;
+% --- Directory where QFT generated controllers are stored
+src = './controllerDesigns/';
 
-% Construct controller TF
-G = tf( num, den );
+% --- Controller, G(s)
+G_file  = [ src 'G.shp' ];
+if( isfile(G_file) )
+    G = getqft( G_file );
+else
+    syms s;
+    num = (-10) .* sym2poly( (s/0.3 + 1) );     % Numerator
+    den =          sym2poly( (s/10  + 1) );     % Denominator
+    clear s;
+    
+    % Construct controller TF
+    G = tf( num, den );                         % Eq.(CS3.25)
+end
 
 % Define a frequency array for loop shaping
-wl = linspace( 1, 500000 );
+wl = logspace( log10(0.0001), log10(1000), 1024 );
 L0 = P( 1, 1, nompt );
 L0.ioDelay = 0; % no delay
 lpshape( wl, ubdb, L0, G );
@@ -505,17 +446,26 @@ fprintf( ACK );
 
 
 %% Step 10: Synthesize Prefitler F(s)
-%{
+
 % [INFO] ...
 fprintf( 'Step 10:' );
 fprintf( '\tSynthesize F(s)...' );
 
-syms s;
-num = 1;
-den = sym2poly( s/550 + 1 );
-clear s;
-
-F = tf( num, den );
+% --- Directory where QFT generated controllers are stored
+src = './controllerDesigns/';
+% --- Pre-filter file, F(s)
+F_file  = [ src 'F.fsh' ];
+if( isfile(F_file) )
+    F = getqft( F_file );
+else
+    syms s;
+    num = 1.02;                                     % Numerator
+    den = sym2poly( (s/0.225 + 1)*(s/2 + 1) );      % Denominator
+    clear s;
+    
+    % Construct controller TF
+    F = tf( num, den );
+end
 
 pfshape( 7, wl, del_6, P, [], G, [], F );
 
@@ -527,18 +477,16 @@ fprintf( ACK );
 disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
 chksiso( 1, wl, del_1, P, [], G );
-ylim( [0 3.5] );
+% ylim( [0 3.5] );
 
 disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
-ind = find(wl <= 1000);
+ind = wl <= max(omega_3);
 chksiso( 2, wl(ind), del_3, P, [], G );
-ylim( [-90 10] );
+% ylim( [-90 10] );
 
 disp(' ')
 disp('chksiso(7,wl,W3,P,R,G); %input disturbance rejection spec')
-drawnow
-% chksiso(7,wl(ind),W7,P,[],G);
-chksiso( 7, wl, del_6, P, [], G, [], F );
+ind = wl <= max(omega_6);
+chksiso( 7, wl(ind), del_6, P, [], G, [], F );
 % ylim( [-0.1 1.3] );
-%}
