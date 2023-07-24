@@ -70,8 +70,8 @@ B_full = stateSpace.ABCD( 1:nStates      , nStates+1:end );
 C_full = stateSpace.ABCD( nStates+1:end  , 1:nStates     );
 D_full = stateSpace.ABCD( nStates+1:end  , nStates+1:end );
 
-% --- In this case, we only care about the first 4 states
-nStatesKeep = 2;
+% --- In this case, we only care about the first "nStatesKeep" states
+nStatesKeep = nStates;
 A = A_full( 1:nStatesKeep   , 1:nStatesKeep );
 B = B_full( 1:nStatesKeep   , 1:end         );
 C = C_full( 1:end           , 1:nStatesKeep );
@@ -79,8 +79,11 @@ D = D_full( 1:height(C)     , 1:end         );
 
 % --- Generate state-space model
 % States and inputs names
-stateNames  = [ "phi" "omega" ];
-inputNames  = [ "u_pitch" ];
+stateNames  = [ "phi"           ,   "omega"             , ...
+                "blade120_phi"  ,   "blade120_omega"    , ...
+                "blade0_phi"    ,   "blade0_omega"      , ...
+                "blade240_phi"  ,   "blade240_omega"    ];
+inputNames  = [ "u_{pitch}" ];
 outputNames = [ "omega" ];
 % State-space model
 sys         = ss( A, B, C, D                , ...
@@ -92,23 +95,23 @@ TF = tf( sys );
 
 %% Manaully construct SISO
 
-A3 = [ -0.076995 ];
-B3 = [ -1.535 ].';
-C3 = [ 1 ];
-D3 = 0;
-
-% --- Generate state-space model
-% States and inputs names
-stateNames  = [ "omega" ];
-inputNames  = [ "u_pitch" ];
-outputNames = [ "omega" ];
-% State-space model
-sys3         = ss( A3, B3, C3, D3           , ...
-                  'StateName' , stateNames  , ...
-                  'InputName' , inputNames  , ...
-                  'OutputName', outputNames );
-% --- Generate TF from SS model
-TF3 = tf( sys3 );
+% A3 = [ -0.07340 ];
+% B3 = [ -1.44872 ].';
+% C3 = [ 1 ];
+% D3 = 0;
+% 
+% % --- Generate state-space model
+% % States and inputs names
+% stateNames  = [ "omega" ];
+% inputNames  = [ "u_pitch" ];
+% outputNames = [ "omega" ];
+% % State-space model
+% sys3         = ss( A3, B3, C3, D3           , ...
+%                   'StateName' , stateNames  , ...
+%                   'InputName' , inputNames  , ...
+%                   'OutputName', outputNames );
+% % --- Generate TF from SS model
+% TF3 = tf( sys3 );
 
 %% Step 1: Plant Modeling & Uncertainty
 
@@ -117,18 +120,41 @@ TF3 = tf( sys3 );
 %   max_    : Maximum value
 %   grid_   : Gridding
 %
-w_0     = A3;
 loVal   = 0.95;             % min_ val is 95%  of nominal
 hiVal   = 1.05;             % max_ val is 105% of nominal
-min_w   = w_0*loVal;    max_w   = w_0*hiVal;    grid_w  = 5;
+% Variables we want to vary
+A21     = A(2, 1);  A22     = A(2, 2);
+A23     = A(2, 3);  A25     = A(2, 5);
+A27     = A(2, 7);  B21     = B(2, 1);
+% Add variations
+min_A21 = A21*loVal;    max_A21 = A21*hiVal;    grid_A21 = 3;
+min_A22 = A22*loVal;    max_A22 = A22*hiVal;    grid_A22 = 3;
+min_A23 = A23*loVal;    max_A23 = A23*hiVal;    grid_A23 = 3;
+min_A25 = A25*loVal;    max_A25 = A25*hiVal;    grid_A25 = 3;
+min_A27 = A27*loVal;    max_A27 = A27*hiVal;    grid_A27 = 3;
+min_B21 = B21*loVal;    max_B21 = B21*hiVal;    grid_B21 = 3;
+% w_0     = A3;
+% loVal   = 0.95;             % min_ val is 95%  of nominal
+% hiVal   = 1.05;             % max_ val is 105% of nominal
+% min_w   = w_0*loVal;    max_w   = w_0*hiVal;    grid_w  = 5;
 
 
 % --- Gridding
 %   ***NOTE: Can grid using logspace() or linspace()
 %   _g  : Gridded variable
 %
-w_g = logspace( log10(min_w)    ,   log10(max_w)    ,   grid_w );
-
+A21_g = linspace( (min_A21)    ,   (max_A21)  ,   grid_A21 );
+A22_g = linspace( (min_A22)    ,   (max_A22)  ,   grid_A22 );
+A23_g = linspace( (min_A23)    ,   (max_A23)  ,   grid_A23 );
+A25_g = linspace( (min_A25)    ,   (max_A25)  ,   grid_A25 );
+A27_g = linspace( (min_A27)    ,   (max_A27)  ,   grid_A27 );
+B21_g = linspace( (min_B21)    ,   (max_B21)  ,   grid_B21 );
+% A21_g = logspace( log10(min_A21)    ,   log10(max_A21)  ,   grid_A21 );
+% A22_g = logspace( log10(min_A22)    ,   log10(max_A22)  ,   grid_A22 );
+% A23_g = logspace( log10(min_A23)    ,   log10(max_A23)  ,   grid_A23 );
+% A25_g = logspace( log10(min_A25)    ,   log10(max_A25)  ,   grid_A25 );
+% A27_g = logspace( log10(min_A27)    ,   log10(max_A27)  ,   grid_A27 );
+% B21_g = logspace( log10(min_B21)    ,   log10(max_B21)  ,   grid_B21 );
 
 % --- Plant generation
 %   *** Note on transfer function generation:
@@ -138,7 +164,8 @@ w_g = logspace( log10(min_w)    ,   log10(max_w)    ,   grid_w );
 %
 %       i.e. => P( 1, 1, 300 ) == SISO with 300 TFs
 %
-n_Plants = grid_w;                                  % Number of plants
+n_Plants = grid_A21*grid_A22*grid_A23*...
+           grid_A25*grid_A27*grid_B21;              % Number of plants
 P = tf( zeros(1,1,n_Plants) );                      % Pre-allocate memory
 
 % [INFO] ...
@@ -146,22 +173,47 @@ fprintf( 'Step 1:' );
 fprintf( '\tComputing QFT templates using %3i plants...', n_Plants );
 
 NDX = 1;                                            % Plant counter
-for var1 = 1:grid_w                                 % Loop over w
-    w = w_g( var1 );                                % ....
+for var1 = 1:grid_A21                               % Loop over w
+    A21 = A21_g( var1 );                            % ....
+    
+    for var2 = 1:grid_A22                           % Loop over w
+        A22 = A22_g( var2 );                        % ....
+        
+        for var3 = 1:grid_A23                       % Loop over w
+            A23 = A23_g( var3 );                    % ....
+            
+            for var4 = 1:grid_A25                   % Loop over w
+                A25 = A25_g( var4 );                % ....
+                
+                for var5 = 1:grid_A27               % Loop over w
+                    A27 = A27_g( var5 );            % ....
+                    
+                    for var6 = 1:grid_B21           % Loop over w
+                        B21 = B21_g( var6 );        % ....
 
-    % --- Here we create the plant TF
-    A_g = [ w ] ;
-    B_g = [ B3(1) ];
-    C_g = [ C3(1) ];
-    D_g = [ D3(1) ];
-
-    % --- Generate grided TF from grided SS model
-    sys_g = ss( A_g, B_g, C_g, D_g );
-    TF_g = tf( sys_g );
-    P(:, :, NDX) = TF_g(1);         % Transfer Function
-    NDX = NDX + 1;                  % Incerement counter
+                        % --- Here we create the plant TF
+                        A_g = A;    B_g = B;
+                        C_g = C;    D_g = D;
+                    
+                        % Add uncertainty
+                        A_g(2, 1) = A21;
+                        A_g(2, 2) = A22;
+                        A_g(2, 3) = A23;
+                        A_g(2, 5) = A25;
+                        A_g(2, 7) = A27;
+                        B_g(2, 1) = B21;
+                    
+                        % --- Generate grided TF from grided SS model
+                        sys_g = ss( A_g, B_g, C_g, D_g );
+                        TF_g = tf( sys_g );
+                        P(:, :, NDX) = TF_g(1);         % Transfer Function
+                        NDX = NDX + 1;                  % Incerement counter
+                    end
+                end
+            end
+        end
+    end
 end
-
 % [INFO] ...
 fprintf( ACK );
 
@@ -175,7 +227,7 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-P0(1, 1, 1) = TF3;                      % Nominal Transfer Function
+P0(1, 1, 1) = TF;                       % Nominal Transfer Function
 
 % --- Append to the end of the gridded plants
 P( 1, 1, end+1 ) = P0;
@@ -427,8 +479,8 @@ if( isfile(G_file) )
     G = getqft( G_file );
 else
     syms s;
-    num = (-10) .* sym2poly( (s/0.3 + 1) );     % Numerator
-    den =          sym2poly( (s/10  + 1) );     % Denominator
+    num = (-7.5) .* sym2poly( (s/0.1 + 1) );    % Numerator
+    den =           sym2poly( (s/8   + 1) );    % Denominator
     clear s;
     
     % Construct controller TF
@@ -459,7 +511,7 @@ if( isfile(F_file) )
     F = getqft( F_file );
 else
     syms s;
-    num = 1.02;                                     % Numerator
+    num = 1.05;                                     % Numerator
     den = sym2poly( (s/0.225 + 1)*(s/2 + 1) );      % Denominator
     clear s;
     
@@ -467,7 +519,7 @@ else
     F = tf( num, den );
 end
 
-pfshape( 7, wl, del_6, P, [], G, [], F );
+pfshape( 7, min(omega_6):0.01:max(omega_6), del_6, L0, [], G, [], F );
 
 % [INFO] ...
 fprintf( ACK );
@@ -476,7 +528,8 @@ fprintf( ACK );
 
 disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
-chksiso( 1, wl, del_1, P, [], G );
+ind = wl <= max(omega_1);
+chksiso( 1, wl(ind), del_1, P, [], G );
 % ylim( [0 3.5] );
 
 disp(' ')
