@@ -271,9 +271,9 @@ hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
 set( hLegend, 'location', 'southeast' );    % Access and change location
 
 % --- Change plot limits
-% xmin = -25; xmax = 10; dx = 5;
-% xlim( [xmin xmax] );
-% xticks( xmin:dx:xmax )
+xmin = -315; xmax = -135; dx = 45;
+xlim( [xmin xmax] );
+xticks( xmin:dx:xmax )
 title( 'Plant Templates' )
 
 % --- Beautify plot
@@ -493,6 +493,9 @@ L0 = P( 1, 1, nompt );
 L0.ioDelay = 0; % no delay
 lpshape( wl, ubdb, L0, G );
 
+% --- Store as SS in case we want to use a SS representation in Simulink
+[A_G, B_G, C_G, D_G] = tf2ss( cell2mat(tf(G).num), cell2mat(tf(G).den) );
+
 % [INFO] ...
 fprintf( ACK );
 
@@ -520,6 +523,9 @@ else
 end
 
 pfshape( 7, min(omega_6):0.01:max(omega_6), del_6, L0, [], G, [], F );
+
+% --- Store as SS in case we want to use a SS representation in Simulink
+[A_F, B_F, C_F, D_F] = tf2ss( cell2mat(tf(F).num), cell2mat(tf(F).den) );
 
 % [INFO] ...
 fprintf( ACK );
