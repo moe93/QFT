@@ -59,7 +59,8 @@ addpath( genpath(src) );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-name_mdl    = 'SS_linearizedTurbine.mat';
+% name_mdl    = 'SS_linearizedTurbine_16p46rpm.mat';
+name_mdl    = 'SS_linearizedTurbine_7p56rpm_w_TrqControl.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -120,19 +121,19 @@ TF = tf( sys );
 %   max_    : Maximum value
 %   grid_   : Gridding
 %
-loVal   = 0.95;             % min_ val is 95%  of nominal
-hiVal   = 1.05;             % max_ val is 105% of nominal
+loVal   = 0.90;             % min_ val is 90%  of nominal
+hiVal   = 1.10;             % max_ val is 110% of nominal
 % Variables we want to vary
 A21     = A(2, 1);  A22     = A(2, 2);
 A23     = A(2, 3);  A25     = A(2, 5);
 A27     = A(2, 7);  B21     = B(2, 1);
 % Add variations
-min_A21 = A21*loVal;    max_A21 = A21*hiVal;    grid_A21 = 3;
-min_A22 = A22*loVal;    max_A22 = A22*hiVal;    grid_A22 = 3;
-min_A23 = A23*loVal;    max_A23 = A23*hiVal;    grid_A23 = 3;
-min_A25 = A25*loVal;    max_A25 = A25*hiVal;    grid_A25 = 3;
-min_A27 = A27*loVal;    max_A27 = A27*hiVal;    grid_A27 = 3;
-min_B21 = B21*loVal;    max_B21 = B21*hiVal;    grid_B21 = 3;
+min_A21 = A21*loVal;    max_A21 = A21*hiVal;    grid_A21 = 2;
+min_A22 = A22*loVal;    max_A22 = A22*hiVal;    grid_A22 = 2;
+min_A23 = A23*loVal;    max_A23 = A23*hiVal;    grid_A23 = 2;
+min_A25 = A25*loVal;    max_A25 = A25*hiVal;    grid_A25 = 2;
+min_A27 = A27*loVal;    max_A27 = A27*hiVal;    grid_A27 = 2;
+min_B21 = B21*loVal;    max_B21 = B21*hiVal;    grid_B21 = 2;
 % w_0     = A3;
 % loVal   = 0.95;             % min_ val is 95%  of nominal
 % hiVal   = 1.05;             % max_ val is 105% of nominal
@@ -232,6 +233,14 @@ P0(1, 1, 1) = TF;                       % Nominal Transfer Function
 % --- Append to the end of the gridded plants
 P( 1, 1, end+1 ) = P0;
 
+% --- Cleanup plants transfer function by removing values below 1e-16
+for ii = 1:length( P )
+    [n, d] = tfdata( minreal(P( 1, 1, ii ), 0.01) );
+    n = cellfun(@(x) {x.*(abs(x) > 1e-16)}, n);
+    d = cellfun(@(x) {x.*(abs(x) > 1e-16)}, d);
+    P( 1, 1, ii ) = tf(n, d);
+end
+
 % --- Define nominal plant case
 nompt = length( P );
 
@@ -239,19 +248,21 @@ nompt = length( P );
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( log10(0.0001), log10(100), 1024 );
-figure( CNTR ); CNTR = CNTR + 1;
-bode( P0, w ); grid on;
+w = logspace( log10(0.0001), log10(10), 1024 );
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    bode( P0, w ); grid on;
+    make_nice_plot();
+end
 [p0, theta0] = bode( P0, w );
 
-make_nice_plot();
-
 % --- Plot root locus
-figure( CNTR ); CNTR = CNTR + 1;
-rlocus( P0 );
-title('Root Locus of Plant')
-
-make_nice_plot();
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    rlocus( P0 );
+    title('Root Locus of Plant')
+    make_nice_plot();
+end
 
 %% Step 3: QFT Template
 
@@ -261,7 +272,8 @@ fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
 % w = linspace( 1e1, 1e3, 10 );
-w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+% w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+w = [ 1e-3 1e-2 1e-1 1e0 1e1 ];
 
 % --- Plot QFT templates
 plottmpl( w, P, nompt );
@@ -271,9 +283,9 @@ hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
 set( hLegend, 'location', 'southeast' );    % Access and change location
 
 % --- Change plot limits
-xmin = -315; xmax = -135; dx = 45;
-xlim( [xmin xmax] );
-xticks( xmin:dx:xmax )
+% xmin = -315; xmax = -135; dx = 45;
+% xlim( [xmin xmax] );
+% xticks( xmin:dx:xmax )
 title( 'Plant Templates' )
 
 % --- Beautify plot
@@ -300,8 +312,10 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+% omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+omega_1 = [ 1e-3 1e-2 1e-1 1e0 1e1 ];
 % Restriction
+% W_s         = 1.46;
 W_s         = 1.08;
 del_1       = W_s;
 PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
@@ -318,34 +332,87 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
-% --- Type 3
+% --- Type 3: Sensitivity or ouptut disturbance rejection specification
+%
+% Typically use the following form:
+%   
+%   --> del_3(s) = s/(s + a_d)
+%
+%   By selecting just one parameter, the pole a_d, we can achieve different
+% levels of disturbance rejection. The higher the parameter a_d, the more
+% significant the attenuation of the effect of the disturbance.
+%
+
 % Frequencies of interest
-omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
+% omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
+omega_3 = [ 1e-1 1e0 ];
 
 % Restriction
-num     = [ 0.025   , 0.2   , 0.018 ];
-den     = [ 0.025   , 10    , 1     ];
+a_d     = 0.01;
+num     = [ 1/a_d   , 0 ];
+den     = [ 1/a_d   , 1 ];
+% num     = [ 0.025   , 0.2   , 0.018 ];
+% den     = [ 0.025   , 10    , 1     ];
 del_3   = tf( num, den );
 
+% --- Plot bounds
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    bode( del_3, min(omega_3):0.01:max(omega_3) );
+    make_nice_plot();
+end
 
-% --- Type 6
+
+% --- Type 6: Reference tracking specification
+%
+% A practical selection is:
+%
+%                         (1-eps_L)
+%   --> del_6_lo(s) = -----------------
+%                       (s/a_L + 1)^2
+%       With
+%               0 <= eps_L
+%
+%
+%                           (s/a_U + 1)*(1+eps_U)
+%   --> del_6_hi(s) = ----------------------------------
+%                       ((s/wn)^2 + (2*zeta*s/wn) + 1)
+%       With
+%               0 <= eps_U; zeta = 0.8; wn = 1.25*a_U/zeta
+%
+%   Normally, we do not ask the system to follow a high-frequency
+% reference. In this way, we reduce high-frequency activity of the
+% actuators and then avoid potential mechanical fatigue problems.
+%
+
 % Frequencies of interest
-omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
+% omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
+omega_6 = [ 1e-1 1e0 ];
 
 % Restriction
 % Upper bound
-a_U = 0.1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
-num = [ 21/2 21/20 ];
-den = [ (1/wn)*(1/wn) (2*zeta/wn) 1 ];
+% a_U = 0.1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
+a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
+num = [ conv([1/a_U 1], [0 1+eps_U]) ];
+den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
-a_L = 0.25; eps_L = 0.0;
+% a_L = 0.25; eps_L = 0.0;
+a_L = 0.35; eps_L = 0.01;
 num = 1-eps_L;
-den = [ 16 8 1 ];
+den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
 % Tracking weight
 del_6 = [ del_6_hi  ;
           del_6_lo ];
+
+% --- Plot bounds
+if( PLOT )
+    figure( CNTR ); CNTR = CNTR + 1;
+    step( del_6(1) );   hold on ;  grid on;
+    step( del_6(2) );   hold off;
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -377,14 +444,16 @@ fprintf( '\t\t > ' );
 bdb1 = sisobnds( spec, omega_1, del_1, P, [], nompt );
 % R = 0; bdb1 = sisobnds( spec, omega_1, del_1, P, R, nompt );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
 % --- Plot bounds
-plotbnds( bdb1 );
-title( 'Robust Stability Bounds' );
-xlim( [-360 0] ); ylim( [-10 30] );
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+
+    plotbnds( bdb1 );
+    title( 'Robust Stability Bounds' );
+    xlim( [-360 0] ); ylim( [-10 30] );
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -404,13 +473,15 @@ fprintf( '\t\t > ' );
 % --- Compute bounds
 bdb2 = sisobnds( spec, omega_3, del_3, P, [], nompt );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
 % --- Plot bounds
-plotbnds(bdb2);
-title('Sensitivity Reduction Bounds');
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+    
+    plotbnds(bdb2);
+    title('Sensitivity Reduction Bounds');
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -428,13 +499,15 @@ fprintf( '\t\t > ' );
 % --- Compute bounds
 bdb7 = sisobnds( spec, omega_6, del_6, P );
 
-% [INFO] ...
-fprintf( 'Plotting bounds...' );
-
 % --- Plot bounds
-plotbnds(bdb7);
-title('Robust Tracking Bounds');
-make_nice_plot();
+if( PLOT )
+    % [INFO] ...
+    fprintf( 'Plotting bounds...' );
+    
+    plotbnds(bdb7);
+    title('Robust Tracking Bounds');
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -449,8 +522,11 @@ fprintf( '\tGrouping bounds...' );
 % --- Grouping bounds
 % bdb = grpbnds( bdb1, bdb2 );
 bdb = grpbnds( bdb1, bdb2, bdb7 );
-plotbnds(bdb); 
-title('All Bounds');
+% --- Plot bounds
+if( PLOT )
+    plotbnds( bdb ); 
+    title( 'All Bounds' );
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -458,8 +534,11 @@ fprintf( '\tIntersection of bounds...' );
 
 % --- Find bound intersections
 ubdb = sectbnds(bdb);
-plotbnds(ubdb);
-title('Intersection of Bounds');
+% --- Plot bounds
+if( PLOT )
+    plotbnds( ubdb );
+    title( 'Intersection of Bounds' );
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -474,7 +553,8 @@ fprintf( '\tSynthesize G(s)...' );
 src = './controllerDesigns/';
 
 % --- Controller, G(s)
-G_file  = [ src 'G.shp' ];
+% G_file  = [ src 'G.shp' ];
+G_file  = [ src 'G_w_GenTrq.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
 else
@@ -509,7 +589,8 @@ fprintf( '\tSynthesize F(s)...' );
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
-F_file  = [ src 'F.fsh' ];
+% F_file  = [ src 'F.fsh' ];
+F_file  = [ src 'F_w_GenTrq.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else
@@ -522,7 +603,7 @@ else
     F = tf( num, den );
 end
 
-pfshape( 7, min(omega_6):0.01:max(omega_6), del_6, L0, [], G, [], F );
+pfshape( 7, min(omega_6):0.001:max(omega_6), del_6, P, [], G, [], F );
 
 % --- Store as SS in case we want to use a SS representation in Simulink
 [A_F, B_F, C_F, D_F] = tf2ss( cell2mat(tf(F).num), cell2mat(tf(F).den) );
@@ -534,18 +615,18 @@ fprintf( ACK );
 
 disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
-ind = wl <= max(omega_1);
+ind = (min(omega_1) <= wl) & (wl <= max(omega_1));
 chksiso( 1, wl(ind), del_1, P, [], G );
 % ylim( [0 3.5] );
 
 disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
-ind = wl <= max(omega_3);
+ind = (min(omega_3) <= wl) & (wl <= max(omega_3));
 chksiso( 2, wl(ind), del_3, P, [], G );
 % ylim( [-90 10] );
 
 disp(' ')
 disp('chksiso(7,wl,W3,P,R,G); %input disturbance rejection spec')
-ind = wl <= max(omega_6);
+ind = (min(omega_6) <= wl) & (wl <= max(omega_6));
 chksiso( 7, wl(ind), del_6, P, [], G, [], F );
 % ylim( [-0.1 1.3] );
