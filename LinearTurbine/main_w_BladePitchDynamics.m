@@ -60,7 +60,7 @@ addpath( genpath(src) );
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
 % name_mdl    = 'SS_linearizedTurbine_16p46rpm.mat';
-name_mdl    = 'SS_linearizedTurbine_7p56rpm_w_TrqControl.mat';
+name_mdl    = 'SS_linearizedTurbine_Rated_w_GenTrq_w_BladePitchDynamics.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -80,10 +80,10 @@ D = D_full( 1:height(C)     , 1:end         );
 
 % --- Generate state-space model
 % States and inputs names
-stateNames  = [ "phi"           ,   "omega"             , ...
-                "blade120_phi"  ,   "blade120_omega"    , ...
-                "blade0_phi"    ,   "blade0_omega"      , ...
-                "blade240_phi"  ,   "blade240_omega"    ];
+stateNames  = [ "phi"           , "omega"           , ...
+                "blade120_phi"  , "blade120_omega"  , "blade120_Mact", ...
+                "blade0_phi"    , "blade0_omega"    , "blade0_Mact"  , ...
+                "blade240_phi"  , "blade240_omega"  , "blade2400_Mact"];
 inputNames  = [ "u_{pitch}" ];
 outputNames = [ "omega" ];
 % State-space model
@@ -114,15 +114,19 @@ loVal   = 0.90;             % min_ val is 90%  of nominal
 hiVal   = 1.10;             % max_ val is 110% of nominal
 % Variables we want to vary
 A21     = A(2, 1);  A22     = A(2, 2);
-A23     = A(2, 3);  A25     = A(2, 5);
-A27     = A(2, 7);  B21     = B(2, 1);
+A23     = A(2, 3);
+A25     = A(2, 5);  A26     = A(2, 6);
+A28     = A(2, 8);  A29     = A(2, 9);
+A211    = A(2,11);
 % Add variations
 min_A21 = A21*loVal;    max_A21 = A21*hiVal;    grid_A21 = 2;
 min_A22 = A22*loVal;    max_A22 = A22*hiVal;    grid_A22 = 2;
 min_A23 = A23*loVal;    max_A23 = A23*hiVal;    grid_A23 = 2;
 min_A25 = A25*loVal;    max_A25 = A25*hiVal;    grid_A25 = 2;
-min_A27 = A27*loVal;    max_A27 = A27*hiVal;    grid_A27 = 2;
-min_B21 = B21*loVal;    max_B21 = B21*hiVal;    grid_B21 = 2;
+min_A26 = A26*loVal;    max_A26 = A26*hiVal;    grid_A26 = 2;
+min_A28 = A28*loVal;    max_A28 = A28*hiVal;    grid_A28 = 2;
+min_A29 = A29*loVal;    max_A29 = A29*hiVal;    grid_A29 = 2;
+min_A211= A211*loVal;   max_A211= A211*hiVal;   grid_A211= 2;
 % w_0     = A3;
 % loVal   = 0.95;             % min_ val is 95%  of nominal
 % hiVal   = 1.05;             % max_ val is 105% of nominal
@@ -137,8 +141,10 @@ A21_g = linspace( (min_A21)    ,   (max_A21)  ,   grid_A21 );
 A22_g = linspace( (min_A22)    ,   (max_A22)  ,   grid_A22 );
 A23_g = linspace( (min_A23)    ,   (max_A23)  ,   grid_A23 );
 A25_g = linspace( (min_A25)    ,   (max_A25)  ,   grid_A25 );
-A27_g = linspace( (min_A27)    ,   (max_A27)  ,   grid_A27 );
-B21_g = linspace( (min_B21)    ,   (max_B21)  ,   grid_B21 );
+A26_g = linspace( (min_A26)    ,   (max_A26)  ,   grid_A26 );
+A28_g = linspace( (min_A28)    ,   (max_A28)  ,   grid_A28 );
+A29_g = linspace( (min_A29)    ,   (max_A29)  ,   grid_A29 );
+A211_g= linspace( (min_A211)   ,   (max_A211) ,   grid_A211);
 % A21_g = logspace( log10(min_A21)    ,   log10(max_A21)  ,   grid_A21 );
 % A22_g = logspace( log10(min_A22)    ,   log10(max_A22)  ,   grid_A22 );
 % A23_g = logspace( log10(min_A23)    ,   log10(max_A23)  ,   grid_A23 );
@@ -154,8 +160,8 @@ B21_g = linspace( (min_B21)    ,   (max_B21)  ,   grid_B21 );
 %
 %       i.e. => P( 1, 1, 300 ) == SISO with 300 TFs
 %
-n_Plants = grid_A21*grid_A22*grid_A23*...
-           grid_A25*grid_A27*grid_B21;              % Number of plants
+n_Plants = grid_A21*grid_A22*grid_A23*grid_A25*...
+           grid_A26*grid_A28*grid_A29*grid_A211;    % Number of plants
 P = tf( zeros(1,1,n_Plants) );                      % Pre-allocate memory
 
 % [INFO] ...
@@ -175,37 +181,45 @@ for var1 = 1:grid_A21                               % Loop over w
             for var4 = 1:grid_A25                   % Loop over w
                 A25 = A25_g( var4 );                % ....
                 
-                for var5 = 1:grid_A27               % Loop over w
-                    A27 = A27_g( var5 );            % ....
+                for var5 = 1:grid_A26               % Loop over w
+                    A26 = A26_g( var5 );            % ....
                     
-                    for var6 = 1:grid_B21           % Loop over w
-                        B21 = B21_g( var6 );        % ....
+                    for var6 = 1:grid_A28           % Loop over w
+                        A28 = A28_g( var6 );        % ....
 
-                        % --- Here we create the plant TF
-                        A_g = A;    B_g = B;
-                        C_g = C;    D_g = D;
-                    
-                        % Add uncertainty
-                        A_g(2, 1) = A21;
-                        A_g(2, 2) = A22;
-                        A_g(2, 3) = A23;
-                        A_g(2, 5) = A25;
-                        A_g(2, 7) = A27;
-                        B_g(2, 1) = B21;
-                    
-                        % --- Generate grided TF from grided SS model
-                        sys_g = ss( A_g, B_g, C_g, D_g );
-                        TF_g = tf( sys_g );
-                        P(:, :, NDX) = TF_g(1);         % Transfer Function
-                        NDX = NDX + 1;                  % Incerement counter
+                        for var7 = 1:grid_A29       % Loop over w
+                            A29 = A29_g( var7 );    % ....
+
+                            for var8 = 1:grid_A211  % Loop over w
+                                A211 = A211_g( var8 );        % ....
+
+                                % --- Here we create the plant TF
+                                A_g = A;    B_g = B;
+                                C_g = C;    D_g = D;
+                            
+                                % Add uncertainty
+                                A_g(2, 1) = A21;
+                                A_g(2, 2) = A22;
+                                A_g(2, 3) = A23;
+                                A_g(2, 5) = A25;
+                                A_g(2, 6) = A26;
+                                A_g(2, 8) = A28;
+                                A_g(2, 9) = A29;
+                                A_g(2,11) = A211;
+                            
+                                % --- Generate grided TF from grided SS model
+                                sys_g = ss( A_g, B_g, C_g, D_g );
+                                TF_g = tf( sys_g );
+                                P(:, :, NDX) = TF_g(1);         % Transfer Function
+                                NDX = NDX + 1;                  % Incerement counter
+                            end
+                        end
                     end
                 end
             end
         end
     end
-end
-% --- Add actuator dynamics
-P = P .* M_act;
+end 
 
 % [INFO] ...
 fprintf( ACK );
@@ -221,8 +235,6 @@ fprintf( '\tComputing nominal plant...' );
 %   We just happened to chose this one.
 %
 P0(1, 1, 1) = TF;                       % Nominal Transfer Function
-% --- Add actuator dynamics
-P0 = P0 * M_act;
 
 % --- Append to the end of the gridded plants
 P( 1, 1, end+1 ) = P0;
@@ -344,7 +356,7 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_3 = [ 1e-1 1e0 1e1 ];
+omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
 
 % Restriction
 a_d     = 0.01;
@@ -369,7 +381,7 @@ end
 
 % Frequencies of interest
 % omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_4 = [ 1e-1 1e0 1e1 ];
+omega_4 = [ 1e-2 1e-1 1e0 1e1 ];
 
 % Restriction
 a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
@@ -412,7 +424,7 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_6 = [ 1e-1 1e0 1e1 ];
+omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
 
 % Restriction
 % Upper bound
