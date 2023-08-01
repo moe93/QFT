@@ -36,7 +36,9 @@ PRNT = true;                                %#ok<NASGU>
 % PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 %% Specification 2 (Type 3 in Dr. Garcia's book)
-% --- Type 3: Sensitivity or ouptut disturbance rejection specification
+% -----------------------------------------------------------------------
+% -- Type 3: Sensitivity or output disturbance rejection specification --
+% -----------------------------------------------------------------------
 %
 % Typically use the following form:
 %   
@@ -45,6 +47,8 @@ PRNT = true;                                %#ok<NASGU>
 %   By selecting just one parameter, the pole a_d, we can achieve different
 % levels of disturbance rejection. The higher the parameter a_d, the more
 % significant the attenuation of the effect of the disturbance.
+%
+%   Typical choice for a_d is s.t. ( a_d >= max(omega_3) )
 %
 
 % Frequencies of interest

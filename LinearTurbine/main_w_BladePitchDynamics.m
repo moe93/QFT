@@ -255,7 +255,7 @@ P0 = P( 1, 1, nompt );
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( log10(0.0001), log10(10), 1024 );
+w = logspace( log10(1e-4), log10(1e2), 1024 );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, w ); grid on;
@@ -280,7 +280,8 @@ fprintf( '\tPlotting QFT templates...' );
 % --- Working frequencies
 % w = linspace( 1e1, 1e3, 10 );
 % w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-w = [ 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+% w = [ 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+w = [ 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % --- Plot QFT templates
 plottmpl( w, P, nompt );
@@ -322,7 +323,7 @@ fprintf( '\tDefining stability specifications\n' );
 % --------------------------------------------------
 % Frequencies of interest
 % omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-omega_1 = [ 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+omega_1 = [ 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 % Restriction
 % W_s         = 1.46;
 W_s         = 1.08;
@@ -353,13 +354,15 @@ fprintf( '\tDefining performance specifications...' );
 % levels of disturbance rejection. The higher the parameter a_d, the more
 % significant the attenuation of the effect of the disturbance.
 %
+%   Typical choice for a_d is s.t. ( a_d >= max(omega_3) )
+%
 
 % Frequencies of interest
 % omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
+omega_3 = [ 1e-2 5e-2 1e-1 ];
 
 % Restriction
-a_d     = 0.01;
+a_d     = 1e-1;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 % num     = [ 0.025   , 0.2   , 0.018 ];
@@ -424,18 +427,21 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
+% omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
+omega_6 = [ 1e-2 5e-2 1e-1 1e0 ];
 
 % Restriction
 % Upper bound
 % a_U = 0.1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
-a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
+% a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
+a_U = 0.25; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
 % a_L = 0.25; eps_L = 0.0;
-a_L = 0.25; eps_L = 0.01;
+% a_L = 0.25; eps_L = 0.01;
+a_L = 0.50; eps_L = 0.01;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
@@ -621,8 +627,7 @@ src = './controllerDesigns/';
 
 % --- Controller, G(s)
 % G_file  = [ src 'G.shp' ];
-% G_file  = [ src 'G_w_GenTrq.shp' ];
-G_file  = [ src 'G_w_GenTrq_w_ActuatorDynamics.shp' ];
+G_file  = [ src 'G_w_GenTrq_w_ActuatorDynamics_w_UpdatedSpecs.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
 else
@@ -636,7 +641,7 @@ else
 end
 
 % Define a frequency array for loop shaping
-wl = logspace( log10(0.0001), log10(1000), 1024 );
+wl = logspace( log10(min(w)*1e-1), log10(max(w)*1e1), 1024 );
 L0 = P( 1, 1, nompt );
 L0.ioDelay = 0; % no delay
 lpshape( wl, ubdb, L0, G );
@@ -659,7 +664,7 @@ src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
 % F_file  = [ src 'F.fsh' ];
 % F_file  = [ src 'F_w_GenTrq.fsh' ];
-F_file  = [ src 'F_w_GenTrq_w_ActuatorDynamics.fsh' ];
+F_file  = [ src 'F_w_GenTrq_w_ActuatorDynamics_w_UpdatedSpecs.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else
