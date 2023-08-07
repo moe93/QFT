@@ -7,6 +7,11 @@
 %   Jul. 19th, 2023
 %       - Initial script
 %
+%   Aug.  2nd, 2023
+%       - Added generator torque for regime 3 operations
+%       - Added blade pitching actuator dynamics
+%       - Added wind disturbance
+%
 
 %% Setup environment
 clear all; close all; clc;
@@ -59,7 +64,7 @@ addpath( genpath(src) );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-name_mdl    = 'SS_linearizedTurbine_7p56rpm_w_TrqControl.mat';
+name_mdl    = 'SS_R2_R3_w_ActuatorDynamics.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -77,12 +82,27 @@ B = B_full( 1:nStatesKeep   , 1:end         );
 C = C_full( 1:end           , 1:nStatesKeep );
 D = D_full( 1:height(C)     , 1:end         );
 
+% >>>>>>>>>>>> ============================= <<<<<<<<<<<<
+% ------------ __START__: MODIFICATION ALERT ------------
+% >>>>>>>>>>>> ============================= <<<<<<<<<<<<
+%
+
+% Remove extra unobservable state introduced by Dymola in [C]
+C = C( 1, : );
+D = D( 1:height(C), 1:end );
+
+% >>>>>>>>>>>> ============================= <<<<<<<<<<<<
+% ------------ __ END __: MODIFICATION ALERT ------------
+% >>>>>>>>>>>> ============================= <<<<<<<<<<<<
+
 % --- Generate state-space model
 % States and inputs names
-stateNames  = [ "phi"           ,   "omega"             , ...
-                "blade120_phi"  ,   "blade120_omega"    , ...
-                "blade0_phi"    ,   "blade0_omega"      , ...
-                "blade240_phi"  ,   "blade240_omega"    ];
+stateNames  = [ "phi"           , "omega"           , ...
+                "blade120_phi"  , "blade120_omega"  , "blade120_Mact" , ...
+                "blade0_phi"    , "blade0_omega"    , "blade0_Mact"   , ...
+                "blade240_phi"  , "blade240_omega"  , "blade2400_Mact", ...
+                "wind_delta_x"  , "wind_delta_y"    , "wind_delta_z"  , ...
+                "GenTrq" ];
 inputNames  = [ "u_{pitch}" ];
 outputNames = [ "omega" ];
 % State-space model
@@ -93,7 +113,7 @@ sys         = ss( A, B, C, D                , ...
 % --- Generate TF from SS model
 TF = tf( sys );
 
-%% Actuator Dynamics, M_act(s)
+%% __DEPRECATED__Actuator Dynamics, M_act(s)
 
 % --- The blade pitching actuator has a rate of 10 deg/s <==> 0.1745 rad/s
 %
@@ -104,46 +124,93 @@ M_act = tf( 1, [pitch_rate_rad 1] );
 
 %% Step 1: Plant Modeling & Uncertainty
 
-% --- Plant parameters
+%   For this specific case, disturbances in wind speed and rotor angular
+% velocity cause changes in the matrix elements listed below. Therefore, we
+% add the uncertainties into those elements
+%
+
+% % --- Plant parameters (approach 1)
+% %   min_    : Minimum value
+% %   max_    : Maximum value
+% %   grid_   : Gridding
+% %
+% loVal   = 0.90;             % min_ val is 90%  of nominal
+% hiVal   = 1.10;             % max_ val is 110% of nominal
+% % Variables we want to vary
+% A2_1     = A(2, 1);  A2_2     = A(2, 2);
+% A2_3     = A(2, 3);
+% A2_5     = A(2, 5);  A2_6     = A(2, 6);
+% A2_8     = A(2, 8);  A2_9     = A(2, 9);
+% A2_11    = A(2,11);
+% % Add variations
+% min_A2_1 = A2_1*loVal;    max_A2_1 = A2_1*hiVal;    grid_A2_1 = 2;
+% min_A2_2 = A2_2*loVal;    max_A2_2 = A2_2*hiVal;    grid_A2_2 = 2;
+% min_A2_3 = A2_3*loVal;    max_A2_3 = A2_3*hiVal;    grid_A2_3 = 2;
+% min_A2_5 = A2_5*loVal;    max_A2_5 = A2_5*hiVal;    grid_A2_5 = 2;
+% min_A2_6 = A2_6*loVal;    max_A2_6 = A2_6*hiVal;    grid_A2_6 = 2;
+% min_A2_8 = A2_8*loVal;    max_A2_8 = A2_8*hiVal;    grid_A2_8 = 2;
+% min_A2_9 = A2_9*loVal;    max_A2_9 = A2_9*hiVal;    grid_A2_9 = 2;
+% min_A2_11= A2_11*loVal;   max_A2_11= A2_11*hiVal;   grid_A2_11= 2;
+
+% --- Plant parameters (approach 2)
 %   min_    : Minimum value
 %   max_    : Maximum value
 %   grid_   : Gridding
 %
-loVal   = 0.90;             % min_ val is 90%  of nominal
-hiVal   = 1.10;             % max_ val is 110% of nominal
-% Variables we want to vary
-A21     = A(2, 1);  A22     = A(2, 2);
-A23     = A(2, 3);  A25     = A(2, 5);
-A27     = A(2, 7);  B21     = B(2, 1);
-% Add variations
-min_A21 = A21*loVal;    max_A21 = A21*hiVal;    grid_A21 = 2;
-min_A22 = A22*loVal;    max_A22 = A22*hiVal;    grid_A22 = 2;
-min_A23 = A23*loVal;    max_A23 = A23*hiVal;    grid_A23 = 2;
-min_A25 = A25*loVal;    max_A25 = A25*hiVal;    grid_A25 = 2;
-min_A27 = A27*loVal;    max_A27 = A27*hiVal;    grid_A27 = 2;
-min_B21 = B21*loVal;    max_B21 = B21*hiVal;    grid_B21 = 2;
-% w_0     = A3;
-% loVal   = 0.95;             % min_ val is 95%  of nominal
-% hiVal   = 1.05;             % max_ val is 105% of nominal
-% min_w   = w_0*loVal;    max_w   = w_0*hiVal;    grid_w  = 5;
+
+% % Variables we want to vary (set 1)
+% A2_1     = A(2, 1);  A2_2     = A(2, 2);
+% A2_3     = A(2, 3);
+% A2_5     = A(2, 5);  A2_6     = A(2, 6);
+% A2_8     = A(2, 8);  A2_9     = A(2, 9);
+% A2_11    = A(2,11);
+% A2_12    = A(2,12);
+% % Add variations (set 1)
+% min_A2_1  = -3.201e-5;   max_A2_1  = 2.2603e-6;   grid_A2_1  = 2;
+% min_A2_2  = -0.029162;   max_A2_2  = 0.0413568;   grid_A2_2  = 2;
+% min_A2_3  = 0.0585186;   max_A2_3  = 0.0793742;   grid_A2_3  = 2;
+% min_A2_5  = -0.101409;   max_A2_5  = -0.033333;   grid_A2_5  = 2;
+% min_A2_6  = 0.0606236;   max_A2_6  = 0.0810010;   grid_A2_6  = 2;
+% min_A2_8  = -0.106398;   max_A2_8  = -0.038067;   grid_A2_8  = 2;
+% min_A2_9  = 0.0627056;   max_A2_9  = 0.0823847;   grid_A2_9  = 2;
+% min_A2_11 = -0.111045;   max_A2_11 = -0.047084;   grid_A2_11 = 2;
+% min_A2_12 = 0.0020951;   max_A2_12 = 0.0060559;   grid_A2_12 = 2;
+
+% Variables we want to vary (set 2)
+A2_1     = A(2, 1);  A2_2     = A(2, 2);
+A2_3     = A(2, 3);
+A2_5     = A(2, 5);  A2_6     = A(2, 6);
+A2_8     = A(2, 8);  A2_9     = A(2, 9);
+A2_11    = A(2,11);
+A15_2    = A(2,12);
+% Add variations (set 2)
+min_A2_1  = -2.206e-5;   max_A2_1  = 4.0408e-5;   grid_A2_1  = 2;
+min_A2_2  = -0.048067;   max_A2_2  = 0.0742263;   grid_A2_2  = 2;
+min_A2_3  = 0.0585186;   max_A2_3  = 0.0869730;   grid_A2_3  = 2;
+min_A2_5  = -0.101409;   max_A2_5  = 0.0073289;   grid_A2_5  = 2;
+min_A2_6  = 0.0606236;   max_A2_6  = 0.0900068;   grid_A2_6  = 2;
+min_A2_8  = -0.106398;   max_A2_8  = -0.004490;   grid_A2_8  = 2;
+min_A2_9  = 0.0627056;   max_A2_9  = 0.0930115;   grid_A2_9  = 2;
+min_A2_11 = -0.111045;   max_A2_11 = 0.0015414;   grid_A2_11 = 2;
+min_A15_2 = -4.8925e8;   max_A15_2 = 1.97790e8;   grid_A15_2 = 2;
 
 
 % --- Gridding
 %   ***NOTE: Can grid using logspace() or linspace()
 %   _g  : Gridded variable
 %
-A21_g = linspace( (min_A21)    ,   (max_A21)  ,   grid_A21 );
-A22_g = linspace( (min_A22)    ,   (max_A22)  ,   grid_A22 );
-A23_g = linspace( (min_A23)    ,   (max_A23)  ,   grid_A23 );
-A25_g = linspace( (min_A25)    ,   (max_A25)  ,   grid_A25 );
-A27_g = linspace( (min_A27)    ,   (max_A27)  ,   grid_A27 );
-B21_g = linspace( (min_B21)    ,   (max_B21)  ,   grid_B21 );
-% A21_g = logspace( log10(min_A21)    ,   log10(max_A21)  ,   grid_A21 );
-% A22_g = logspace( log10(min_A22)    ,   log10(max_A22)  ,   grid_A22 );
-% A23_g = logspace( log10(min_A23)    ,   log10(max_A23)  ,   grid_A23 );
-% A25_g = logspace( log10(min_A25)    ,   log10(max_A25)  ,   grid_A25 );
-% A27_g = logspace( log10(min_A27)    ,   log10(max_A27)  ,   grid_A27 );
-% B21_g = logspace( log10(min_B21)    ,   log10(max_B21)  ,   grid_B21 );
+A2_1_g  = linspace( (min_A2_1)    ,   (max_A2_1)  ,   grid_A2_1 );
+A2_2_g  = linspace( (min_A2_2)    ,   (max_A2_2)  ,   grid_A2_2 );
+A2_3_g  = linspace( (min_A2_3)    ,   (max_A2_3)  ,   grid_A2_3 );
+A2_5_g  = linspace( (min_A2_5)    ,   (max_A2_5)  ,   grid_A2_5 );
+A2_6_g  = linspace( (min_A2_6)    ,   (max_A2_6)  ,   grid_A2_6 );
+A2_8_g  = linspace( (min_A2_8)    ,   (max_A2_8)  ,   grid_A2_8 );
+A2_9_g  = linspace( (min_A2_9)    ,   (max_A2_9)  ,   grid_A2_9 );
+A2_11_g = linspace( (min_A2_11)   ,   (max_A2_11) ,   grid_A2_11);
+A15_2_g = linspace( (min_A15_2)   ,   (max_A15_2) ,   grid_A15_2);
+% A2_1_g = logspace( log10(min_A2_1)    ,   log10(max_A2_1)  ,   grid_A2_1 );
+% A2_2_g = logspace( log10(min_A2_2)    ,   log10(max_A2_2)  ,   grid_A2_2 );
+% A2_3_g = logspace( log10(min_A2_3)    ,   log10(max_A2_3)  ,   grid_A2_3 );
 
 % --- Plant generation
 %   *** Note on transfer function generation:
@@ -153,8 +220,8 @@ B21_g = linspace( (min_B21)    ,   (max_B21)  ,   grid_B21 );
 %
 %       i.e. => P( 1, 1, 300 ) == SISO with 300 TFs
 %
-n_Plants = grid_A21*grid_A22*grid_A23*...
-           grid_A25*grid_A27*grid_B21;              % Number of plants
+n_Plants = grid_A2_1*grid_A2_2*grid_A2_3*grid_A2_5*grid_A2_6*...
+           grid_A2_8*grid_A2_9*grid_A2_11*grid_A15_2;   % Number of plants
 P = tf( zeros(1,1,n_Plants) );                      % Pre-allocate memory
 
 % [INFO] ...
@@ -162,49 +229,62 @@ fprintf( 'Step 1:' );
 fprintf( '\tComputing QFT templates using %3i plants...', n_Plants );
 
 NDX = 1;                                            % Plant counter
-for var1 = 1:grid_A21                               % Loop over w
-    A21 = A21_g( var1 );                            % ....
+for var1 = 1:grid_A2_1                               % Loop over w
+    A2_1 = A2_1_g( var1 );                            % ....
     
-    for var2 = 1:grid_A22                           % Loop over w
-        A22 = A22_g( var2 );                        % ....
+    for var2 = 1:grid_A2_2                           % Loop over w
+        A2_2 = A2_2_g( var2 );                        % ....
         
-        for var3 = 1:grid_A23                       % Loop over w
-            A23 = A23_g( var3 );                    % ....
+        for var3 = 1:grid_A2_3                       % Loop over w
+            A2_3 = A2_3_g( var3 );                    % ....
             
-            for var4 = 1:grid_A25                   % Loop over w
-                A25 = A25_g( var4 );                % ....
+            for var4 = 1:grid_A2_5                   % Loop over w
+                A2_5 = A2_5_g( var4 );                % ....
                 
-                for var5 = 1:grid_A27               % Loop over w
-                    A27 = A27_g( var5 );            % ....
+                for var5 = 1:grid_A2_6               % Loop over w
+                    A2_6 = A2_6_g( var5 );            % ....
                     
-                    for var6 = 1:grid_B21           % Loop over w
-                        B21 = B21_g( var6 );        % ....
+                    for var6 = 1:grid_A2_8           % Loop over w
+                        A2_8 = A2_8_g( var6 );        % ....
 
-                        % --- Here we create the plant TF
-                        A_g = A;    B_g = B;
-                        C_g = C;    D_g = D;
-                    
-                        % Add uncertainty
-                        A_g(2, 1) = A21;
-                        A_g(2, 2) = A22;
-                        A_g(2, 3) = A23;
-                        A_g(2, 5) = A25;
-                        A_g(2, 7) = A27;
-                        B_g(2, 1) = B21;
-                    
-                        % --- Generate grided TF from grided SS model
-                        sys_g = ss( A_g, B_g, C_g, D_g );
-                        TF_g = tf( sys_g );
-                        P(:, :, NDX) = TF_g(1);         % Transfer Function
-                        NDX = NDX + 1;                  % Incerement counter
+                        for var7 = 1:grid_A2_9       % Loop over w
+                            A2_9 = A2_9_g( var7 );    % ....
+
+                            for var8 = 1:grid_A2_11  % Loop over w
+                                A2_11 = A2_11_g( var8 );        % ....
+
+                                for var9 = 1:grid_A15_2  % Loop over w
+                                    A15_2 = A15_2_g( var9 );        % ....
+
+                                    % --- Here we create the plant TF
+                                    A_g = A;    B_g = B;
+                                    C_g = C;    D_g = D;
+                                
+                                    % Add uncertainty
+                                    A_g(2, 1) = A2_1;
+                                    A_g(2, 2) = A2_2;
+                                    A_g(2, 3) = A2_3;
+                                    A_g(2, 5) = A2_5;
+                                    A_g(2, 6) = A2_6;
+                                    A_g(2, 8) = A2_8;
+                                    A_g(2, 9) = A2_9;
+                                    A_g(2,11) = A2_11;
+                                    A_g(15,2) = A15_2;
+                                
+                                    % --- Generate grided TF from grided SS model
+                                    sys_g = ss( A_g, B_g, C_g, D_g );
+                                    TF_g = tf( sys_g );
+                                    P(:, :, NDX) = TF_g(1);         % Transfer Function
+                                    NDX = NDX + 1;                  % Incerement counter
+                                end
+                            end
+                        end
                     end
                 end
             end
         end
     end
-end
-% --- Add actuator dynamics
-P = P .* M_act;
+end 
 
 % [INFO] ...
 fprintf( ACK );
@@ -220,8 +300,6 @@ fprintf( '\tComputing nominal plant...' );
 %   We just happened to chose this one.
 %
 P0(1, 1, 1) = TF;                       % Nominal Transfer Function
-% --- Add actuator dynamics
-P0 = P0 * M_act;
 
 % --- Append to the end of the gridded plants
 P( 1, 1, end+1 ) = P0;
@@ -242,7 +320,7 @@ P0 = P( 1, 1, nompt );
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( log10(0.0001), log10(10), 1024 );
+w = logspace( log10(1e-4), log10(1e2), 1024 );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, w ); grid on;
@@ -265,9 +343,9 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-% w = linspace( 1e1, 1e3, 10 );
-% w = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-w = [ 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+% w = linspace( 5e-3, 1e1, 8 );
+% w = [ 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
+w = [ 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % --- Plot QFT templates
 plottmpl( w, P, nompt );
@@ -309,10 +387,10 @@ fprintf( '\tDefining stability specifications\n' );
 % --------------------------------------------------
 % Frequencies of interest
 % omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-omega_1 = [ 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
+omega_1 = [ 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 % Restriction
-% W_s         = 1.46;
-W_s         = 1.08;
+W_s         = 1.46;
+% W_s         = 1.08;
 del_1       = W_s;
 PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
 GM          = 20*log10( 1+1/W_s );                   % In dB
@@ -340,13 +418,15 @@ fprintf( '\tDefining performance specifications...' );
 % levels of disturbance rejection. The higher the parameter a_d, the more
 % significant the attenuation of the effect of the disturbance.
 %
+%   Typical choice for a_d is s.t. ( a_d >= max(omega_3) )
+%
 
 % Frequencies of interest
-% omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_3 = [ 1e-1 1e0 1e1 ];
+% omega_3 = [ 1e-2 5e-2 1e-1 ];
+omega_3 = [ 5e-2 1e-1 ];
 
 % Restriction
-a_d     = 0.01;
+a_d     = 5e-2;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 % num     = [ 0.025   , 0.2   , 0.018 ];
@@ -367,16 +447,18 @@ end
 %
 
 % Frequencies of interest
-% omega_3 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_4 = [ 1e-1 1e0 1e1 ];
+% omega_4 = [ 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
+omega_4 = [ 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % Restriction
-a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
-num = [ conv([1/a_U 1], [0 1+eps_U]) ];
-den = [ (1/wn)^2 (2*zeta/wn) 1 ];
-num     = [ 1/a_d   , 0 ];
-den     = [ 1/a_d   , 1 ];
-del_4   = tf( num, den );
+del_4   = 0.01;
+% a_U = 0.25; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+% a_U = 0.50; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+% num = [ conv([1/a_U 1], [0 1+eps_U]) ];
+% den = [ (1/wn)^2 (2*zeta/wn) 1 ];
+% num     = [ 1/a_d   , 0 ];
+% den     = [ 1/a_d   , 1 ];
+% del_4   = tf( num, den );
 
 % --- Plot bounds
 if( PLOT )
@@ -410,19 +492,19 @@ end
 %
 
 % Frequencies of interest
-% omega_6 = [ 1e-2 1e-1 1e0 1e1 ];
-omega_6 = [ 1e-1 1e0 1e1 ];
+% omega_6 = [ 1e-2 5e-2 1e-1 1e0 ];
+omega_6 = [ 5e-2 1e-1 1e0 ];
 
 % Restriction
 % Upper bound
-% a_U = 0.1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
-a_U = 0.10; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
+% a_U = 0.25; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.01;
+a_U = 0.05; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
-% a_L = 0.25; eps_L = 0.0;
-a_L = 0.25; eps_L = 0.01;
+% a_L = 0.50; eps_L = 0.01;
+a_L = 0.10; eps_L = 0.05;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
@@ -479,7 +561,7 @@ if( PLOT )
 
     plotbnds( bdb1 );
     title( 'Robust Stability Bounds' );
-    xlim( [-360 0] ); ylim( [-10 30] );
+%     xlim( [-360 0] ); ylim( [-10 30] );
     make_nice_plot();
 end
 
@@ -574,8 +656,7 @@ fprintf( 'Step 8:' );
 fprintf( '\tGrouping bounds...' );
 
 % --- Grouping bounds
-% bdb = grpbnds( bdb1, bdb2 );
-bdb = grpbnds( bdb1, bdb2, bdb7 );
+bdb = grpbnds( bdb1, bdb2, bdb3, bdb7 );
 % --- Plot bounds
 if( PLOT )
     plotbnds( bdb ); 
@@ -608,8 +689,7 @@ src = './controllerDesigns/';
 
 % --- Controller, G(s)
 % G_file  = [ src 'G.shp' ];
-% G_file  = [ src 'G_w_GenTrq.shp' ];
-G_file  = [ src 'G_w_GenTrq_w_ActuatorDynamics.shp' ];
+G_file  = [ src 'G_R2_R3_ReducedSpecs.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
 else
@@ -623,7 +703,7 @@ else
 end
 
 % Define a frequency array for loop shaping
-wl = logspace( log10(0.0001), log10(1000), 1024 );
+wl = logspace( log10(min(w)*1e-1), log10(max(w)*1e1), 1024 );
 L0 = P( 1, 1, nompt );
 L0.ioDelay = 0; % no delay
 lpshape( wl, ubdb, L0, G );
@@ -644,9 +724,7 @@ fprintf( '\tSynthesize F(s)...' );
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
-% F_file  = [ src 'F.fsh' ];
-% F_file  = [ src 'F_w_GenTrq.fsh' ];
-F_file  = [ src 'F_w_GenTrq_w_ActuatorDynamics.fsh' ];
+F_file  = [ src 'F_R2_R3_ReducedSpecs.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else
@@ -679,6 +757,12 @@ disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
 ind = (min(omega_3) <= wl) & (wl <= max(omega_3));
 chksiso( 2, wl(ind), del_3, P, [], G );
+% ylim( [-90 10] );
+
+disp(' ')
+disp('chksiso(3,wl,del_4,P,R,G); %Disturbance at input reduction spec')
+ind = (min(omega_4) <= wl) & (wl <= max(omega_4));
+chksiso( 3, wl(ind), del_4, P, [], G );
 % ylim( [-90 10] );
 
 disp(' ')

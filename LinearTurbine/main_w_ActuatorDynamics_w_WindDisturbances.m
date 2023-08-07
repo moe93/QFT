@@ -64,7 +64,6 @@ addpath( genpath(src) );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-% name_mdl    = 'SS_linearizedTurbine_16p46rpm.mat';
 name_mdl    = 'SS_linearizedTurbine_Rated_w_GenTrq_w_ActuatorDynamics.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
