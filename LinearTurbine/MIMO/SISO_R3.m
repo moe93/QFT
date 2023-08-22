@@ -1,4 +1,4 @@
-% Linearized turbine QFT control - SISO Regime 2
+% Linearized turbine QFT control - SISO Regime 3
 %   Design controller for regime 2 and regime 3 separately then combine
 %   using MIMO methodology
 %
@@ -62,7 +62,7 @@ addpath( genpath(src) );
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
 % name_mdl    = 'SS_linearizedTurbine_MIMO_R3.mat';
-name_mdl    = 'SS_linearizedTurbine_SISO_R2.mat';
+name_mdl    = 'SS_linearizedTurbine_SISO_R3.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -87,7 +87,7 @@ stateNames  = [ "phi"           , "omega"           , ...
                 "blade0_phi"    , "blade0_omega"    , "blade0_Mact"   , ...
                 "blade240_phi"  , "blade240_omega"  , "blade240_Mact" , ...
                 "V_{wind_x}"    , "V_{wind_y}"      , "V_{wind_z}"   ];
-inputNames  = [ "u_{GenTrq}" ];
+inputNames  = [ "u_{CPC}", "u_{GenTrq}" ];
 outputNames = [ "\omega_{rot}" ];
 % State-space model
 sys         = ss( A, B, C, D                , ...
@@ -116,15 +116,15 @@ P_manual = C*(s*I - A)^-1*B + D;
 %
 
 % Variables we want to vary (Add variations)
-min_A2_1  = -7.06726e-06;   max_A2_1  = 3.48992e-05 ;   grid_A2_1  = 2;
-min_A2_2  = -0.0431972  ;   max_A2_2  = 0.0544612   ;   grid_A2_2  = 2;
-min_A2_3  = 0.0329793   ;   max_A2_3  = 0.0531303   ;   grid_A2_3  = 2;
-min_A2_5  = -0.0619978  ;   max_A2_5  = 0.00132216  ;   grid_A2_5  = 2;
-min_A2_6  = 0.0334569   ;   max_A2_6  = 0.0549824   ;   grid_A2_6  = 2;
-min_A2_8  = -0.0650182  ;   max_A2_8  = -0.001507   ;   grid_A2_8  = 2;
-min_A2_9  = 0.033886    ;   max_A2_9  = 0.0568169   ;   grid_A2_9  = 2;
-min_A2_11 = -0.0678603  ;   max_A2_11 = -0.00361381 ;   grid_A2_11 = 2;
-min_A2_12 = -0.000181783;   max_A2_12 = 0.00473522  ;   grid_A2_12 = 2;
+min_A2_1  = -5.79745e-06;   max_A2_1  = 4.04086e-05 ;   grid_A2_1  = 2;
+min_A2_2  = -0.0611078  ;   max_A2_2  = 0.0501627   ;   grid_A2_2  = 2;
+min_A2_3  = 0.0695932   ;   max_A2_3  = 0.1002140   ;   grid_A2_3  = 2;
+min_A2_5  = -0.1209990  ;   max_A2_5  = -0.0197135  ;   grid_A2_5  = 2;
+min_A2_6  = 0.0716087   ;   max_A2_6  = 0.1031170   ;   grid_A2_6  = 2;
+min_A2_8  = -0.1264400  ;   max_A2_8  = -0.0253774  ;   grid_A2_8  = 2;
+min_A2_9  = 0.0735982   ;   max_A2_9  = 0.1059810   ;   grid_A2_9  = 2;
+min_A2_11 = -0.1326090  ;   max_A2_11 = -0.03165510 ;   grid_A2_11 = 2;
+min_A2_12 = 0.000950601 ;   max_A2_12 = 0.00663399  ;   grid_A2_12 = 2;
 
 
 % --- Gridding
@@ -257,7 +257,7 @@ P = P11;
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( log10(1e-3), log10(1e1), 1024 );
+w = logspace( log10(1e-2), log10(1e1), 1024 );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, w ); grid on;
@@ -281,25 +281,25 @@ fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
 % w = linspace( 5e-3, 1e1, 8 );
-% w = [ 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
-w = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% w = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% w = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+w = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
 
 % --- Plot QFT templates
-if( PLOT )
-    plottmpl( w, P, nompt );
-    % --- Change legend position
-    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-    set( hLegend, 'location', 'southeast' );    % Access and change location
-    
-    % --- Change plot limits
-    xmin = -405; xmax = -135; dx = 45;
-    xlim( [xmin xmax] );
-    xticks( xmin:dx:xmax )
-    title( 'Plant Templates' )
-    
-    % --- Beautify plot
-    make_nice_plot();
-end
+plottmpl( w, P, nompt );
+
+% --- Change legend position
+hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
+set( hLegend, 'location', 'southeast' );    % Access and change location
+
+% --- Change plot limits
+% xmin = -315; xmax = -135; dx = 45;
+% xlim( [xmin xmax] );
+% xticks( xmin:dx:xmax )
+title( 'Plant Templates' )
+
+% --- Beautify plot
+make_nice_plot();
 
 % [INFO] ...
 fprintf( ACK );
@@ -325,7 +325,9 @@ fprintf( '\tDefining stability specifications\n' );
 % --------------------------------------------------
 % Frequencies of interest
 % omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-omega_1 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% omega_1 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% omega_1 = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+omega_1 = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
 
 % Restriction
 W_s         = 1.46;
@@ -362,14 +364,14 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
-omega_3 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 ];
+% omega_3 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 ];
+% omega_3 = [ 1e-1 2.5e-1 5e-1 1e0 ];
+omega_3 = [ 5e-1 1e0 2.5e0 5e0 ];
 
 % Restriction
-a_d     = 1e-1;
+a_d     = 5e0;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
-% num     = [ 0.025   , 0.2   , 0.018 ];
-% den     = [ 0.025   , 10    , 1     ];
 del_3   = tf( num, den );
 
 % --- Plot bounds
@@ -386,16 +388,21 @@ end
 %
 
 % Frequencies of interest
-omega_4 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
+% omega_4 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+% omega_4 = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
+omega_4 = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
 
 % Restriction
-a_U = 0.01; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+% del_4   = 0.001;
+% a_U = 0.25; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+% a_U = 0.01; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+a_U = 0.5; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 % num     = [ 1/a_d   , 0 ];
 % den     = [ 1/a_d   , 1 ];
 del_4   = tf( num, den );
-% del_4   = 0.001;
 
 % --- Plot bounds
 if( PLOT )
@@ -429,16 +436,21 @@ end
 %
 
 % Frequencies of interest
-omega_6 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 ];
+% omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
+% omega_6 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 ];
+% omega_6 = [ 1e-1 2.5e-1 5e-1 1e0 ];
+omega_6 = [ 5e-1 1e0 2.5e0 5e0 ];
 
-% --- Restrictions
+% Restriction
 % Upper bound
-a_U = 0.025; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+% a_U = 0.005; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
+a_U = 1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
-a_L = 0.050; eps_L = 0.025;
+% a_L = 0.010; eps_L = 0.05;
+a_L = 2.5; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
@@ -492,17 +504,10 @@ bdb1 = sisobnds( spec, omega_1, del_1, P, [], nompt );
 if( PLOT )
     % [INFO] ...
     fprintf( 'Plotting bounds...' );
-    
-    % --- Plot
+
     plotbnds( bdb1 );
     title( 'Robust Stability Bounds' );
-%     xlim( [-360 0] );
-    ylim( [-20 25] );
-
-    % --- Change legend position
-    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-    set( hLegend, 'location', 'southeast' );    % Access and change location
-
+%     xlim( [-360 0] ); ylim( [-10 30] );
     make_nice_plot();
 end
 
@@ -529,14 +534,8 @@ if( PLOT )
     % [INFO] ...
     fprintf( 'Plotting bounds...' );
     
-    % --- Plot
     plotbnds( bdb2 );
     title( 'Sensitivity Reduction Bounds' );
-
-    % --- Change legend position
-    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-    set( hLegend, 'location', 'south' );    % Access and change location
-
     make_nice_plot();
 end
 
@@ -561,14 +560,8 @@ if( PLOT )
     % [INFO] ...
     fprintf( 'Plotting bounds...' );
     
-    % --- Plot
     plotbnds( bdb3 );
     title( 'Input Disturbance Rejection Bounds' );
-
-    % --- Change legend position
-    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-    set( hLegend, 'location', 'southeast' );    % Access and change location
-
     make_nice_plot();
 end
 
@@ -593,14 +586,8 @@ if( PLOT )
     % [INFO] ...
     fprintf( 'Plotting bounds...' );
     
-    % --- Plot
     plotbnds( bdb7 );
     title( 'Robust Tracking Bounds' );
-
-    % --- Change legend position
-    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-    set( hLegend, 'location', 'southeast' );    % Access and change location
-
     make_nice_plot();
 end
 
@@ -647,7 +634,7 @@ fprintf( '\tSynthesize G(s)...' );
 src = './controllerDesigns/';
 
 % --- Controller, G(s)
-G_file  = [ src 'G_R2.shp' ];
+G_file  = [ src 'G_R3.shp' ];
 % G_file  = [ src 'G_12.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
@@ -662,8 +649,7 @@ else
 end
 
 % Define a frequency array for loop shaping
-K = 5e-1;                                       % Scaling factor
-wl = logspace( log10(min(w)*K), log10(max(w)*1/K), 1024 );
+wl = logspace( log10(min(w)*1e-1), log10(max(w)*1e1), 1024 );
 L0 = P( 1, 1, nompt );
 L0.ioDelay = 0; % no delay
 lpshape( wl, ubdb, L0, G );
@@ -685,7 +671,7 @@ fprintf( '\tSynthesize F(s)...' );
 src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
 % F_file  = [ src 'F_11.fsh' ];
-F_file  = [ src 'F_R2.fsh' ];
+F_file  = [ src 'F_R3.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else
