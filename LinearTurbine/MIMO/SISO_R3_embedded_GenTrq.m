@@ -62,7 +62,7 @@ addpath( genpath(src) );
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
 % name_mdl    = 'SS_linearizedTurbine_MIMO_R3.mat';
-name_mdl    = 'SS_linearizedTurbine_SISO_R3.mat';
+name_mdl    = 'SS_linearizedTurbine_SISO_R3_embedded_GenTrq.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -80,6 +80,20 @@ B = B_full( 1:nStatesKeep   , 1:end         );
 C = C_full( 1:end           , 1:nStatesKeep );
 D = D_full( 1:height(C)     , 1:end         );
 
+% ======================== __START__: MODIFICATION ========================
+% This modification is because I exported the file with the wrong actuator
+% cut-off frequency. Fortunately, it does NOT affect the uncertainties in
+% the model.
+A( 5,  5) = -0.1745;
+A( 8,  8) = -0.1745;
+A(11, 11) = -0.1745;
+
+B( 5,  1) =  0.1745;
+B( 8,  1) =  0.1745;
+B(11,  1) =  0.1745;
+% ======================== __ END __: MODIFICATION ========================
+
+
 % --- Generate state-space model
 % States and inputs names
 stateNames  = [ "phi"           , "omega"           , ...
@@ -87,8 +101,8 @@ stateNames  = [ "phi"           , "omega"           , ...
                 "blade0_phi"    , "blade0_omega"    , "blade0_Mact"   , ...
                 "blade240_phi"  , "blade240_omega"  , "blade240_Mact" , ...
                 "V_{wind_x}"    , "V_{wind_y}"      , "V_{wind_z}"   ];
-inputNames  = [ "u_{CPC}", "u_{GenTrq}" ];
-outputNames = [ "\omega_{rot}" ];
+inputNames  = [ "u_{CPC}" ];
+outputNames = [ "\omega_{rot}", 'V_{wind_x}' ];
 % State-space model
 sys         = ss( A, B, C, D                , ...
                   'StateName' , stateNames  , ...
@@ -116,8 +130,8 @@ P_manual = C*(s*I - A)^-1*B + D;
 %
 
 % Variables we want to vary (Add variations)
-min_A2_1  = -5.79745e-06;   max_A2_1  = 4.04086e-05 ;   grid_A2_1  = 2;
-min_A2_2  = -0.0611078  ;   max_A2_2  = 0.0501627   ;   grid_A2_2  = 2;
+min_A2_1  = -5.79853e-06;   max_A2_1  = 4.04052e-05 ;   grid_A2_1  = 2;
+min_A2_2  = -0.0452225  ;   max_A2_2  = 0.0730376   ;   grid_A2_2  = 2;
 min_A2_3  = 0.0695932   ;   max_A2_3  = 0.1002140   ;   grid_A2_3  = 2;
 min_A2_5  = -0.1209990  ;   max_A2_5  = -0.0197135  ;   grid_A2_5  = 2;
 min_A2_6  = 0.0716087   ;   max_A2_6  = 0.1031170   ;   grid_A2_6  = 2;
@@ -257,7 +271,7 @@ P = P11;
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( log10(1e-2), log10(1e1), 1024 );
+w = logspace( log10(1e-3), log10(1e3), 2048 );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, w ); grid on;
@@ -280,26 +294,26 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-% w = linspace( 5e-3, 1e1, 8 );
-% w = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-% w = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-w = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+% w = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+w = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
 
 % --- Plot QFT templates
-plottmpl( w, P, nompt );
+if( PLOT )
+    plottmpl( w, P, nompt );
+    title( 'Plant Templates' )
 
-% --- Change legend position
-hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
-set( hLegend, 'location', 'southeast' );    % Access and change location
-
-% --- Change plot limits
-% xmin = -315; xmax = -135; dx = 45;
-% xlim( [xmin xmax] );
-% xticks( xmin:dx:xmax )
-title( 'Plant Templates' )
-
-% --- Beautify plot
-make_nice_plot();
+    % --- Change legend position
+    hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
+    set( hLegend, 'location', 'southeast' );    % Access and change location
+    
+    % --- Change plot limits
+%     xmin = -405; xmax = -135; dx = 45;
+%     xlim( [xmin xmax] );
+%     xticks( xmin:dx:xmax )
+    
+    % --- Beautify plot
+    make_nice_plot();
+end
 
 % [INFO] ...
 fprintf( ACK );
@@ -324,13 +338,12 @@ fprintf( '\tDefining stability specifications\n' );
 % ----      Type 1: Stability specification     ----
 % --------------------------------------------------
 % Frequencies of interest
-% omega_1 = [ 1e-4 1e-3 1e-2 1e-1 1e0 1e1 1e2 ];
-% omega_1 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-% omega_1 = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-omega_1 = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+% omega_1 = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+omega_1 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
 
 % Restriction
-W_s         = 1.46;
+W_s         = 1.66;
+% W_s         = 1.46;
 % W_s         = 1.08;
 del_1       = W_s;
 PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
@@ -347,6 +360,7 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
+%%
 % -----------------------------------------------------------------------
 % -- Type 3: Sensitivity or output disturbance rejection specification --
 % -----------------------------------------------------------------------
@@ -363,13 +377,11 @@ fprintf( '\tDefining performance specifications...' );
 %
 
 % Frequencies of interest
-% omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
-% omega_3 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 ];
-% omega_3 = [ 1e-1 2.5e-1 5e-1 1e0 ];
-omega_3 = [ 5e-1 1e0 2.5e0 5e0 ];
+% omega_3 = [ 1e0 2.5e0 5e0 ];
+omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
 
 % Restriction
-a_d     = 5e0;
+a_d     = 1e-1;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
@@ -381,21 +393,18 @@ if( PLOT )
     make_nice_plot();
 end
 
-
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
 %
 
 % Frequencies of interest
-% omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
-% omega_4 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-% omega_4 = [ 1e-1 2.5e-1 5e-1 1e0 2.5e0 5e0 1e1 ];
-omega_4 = [ 5e-1 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+% omega_4 = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
+omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
 
 % Restriction
-% del_4   = 0.001;
-% a_U = 0.25; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+% del_4   = 0.5;
 % a_U = 0.01; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
 a_U = 0.5; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
@@ -411,6 +420,7 @@ if( PLOT )
     make_nice_plot();
 end
 
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -436,21 +446,19 @@ end
 %
 
 % Frequencies of interest
-% omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
-% omega_6 = [ 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 1e-1 ];
-% omega_6 = [ 1e-1 2.5e-1 5e-1 1e0 ];
-omega_6 = [ 5e-1 1e0 2.5e0 5e0 ];
+% omega_6 = [ 1e0 2.5e0 5e0 ];
+omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
 
 % Restriction
 % Upper bound
-% a_U = 0.005; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.05;
-a_U = 1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+% a_U = 1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
-% a_L = 0.010; eps_L = 0.05;
-a_L = 2.5; eps_L = 0.025;
+% a_L = 2.5; eps_L = 0.025;
+a_L = 4; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
@@ -542,6 +550,7 @@ end
 % [INFO] ...
 fprintf( ACK );
 
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
@@ -568,6 +577,7 @@ end
 % [INFO] ...
 fprintf( ACK );
 
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -634,7 +644,7 @@ fprintf( '\tSynthesize G(s)...' );
 src = './controllerDesigns/';
 
 % --- Controller, G(s)
-G_file  = [ src 'G_R3.shp' ];
+G_file  = [ src 'G_R3_embedded_GenTrq.shp' ];
 % G_file  = [ src 'G_12.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
@@ -671,7 +681,7 @@ fprintf( '\tSynthesize F(s)...' );
 src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
 % F_file  = [ src 'F_11.fsh' ];
-F_file  = [ src 'F_R3.fsh' ];
+F_file  = [ src 'F_R3_embedded_GenTrq.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else
