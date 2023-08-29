@@ -91,6 +91,7 @@ A(11, 11) = -0.1745;
 B( 5,  1) =  0.1745;
 B( 8,  1) =  0.1745;
 B(11,  1) =  0.1745;
+
 % ======================== __ END __: MODIFICATION ========================
 
 
@@ -295,7 +296,8 @@ fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
 % w = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
-w = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
+% w = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 ];
+w = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % --- Plot QFT templates
 if( PLOT )
@@ -339,11 +341,12 @@ fprintf( '\tDefining stability specifications\n' );
 % --------------------------------------------------
 % Frequencies of interest
 % omega_1 = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
-omega_1 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
+% omega_1 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 ];
+omega_1 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % Restriction
-W_s         = 1.66;
-% W_s         = 1.46;
+% W_s         = 1.66;
+W_s         = 1.46;
 % W_s         = 1.08;
 del_1       = W_s;
 PM          = 180 -2*(180/pi)*acos(0.5/W_s);         % In deg
@@ -377,11 +380,13 @@ fprintf( '\tDefining performance specifications...' );
 %
 
 % Frequencies of interest
-% omega_3 = [ 1e0 2.5e0 5e0 ];
-omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
+% omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
+% omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 ];
+% omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 ];
+omega_3 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
 
 % Restriction
-a_d     = 1e-1;
+a_d     = 5e-1;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
@@ -390,6 +395,7 @@ del_3   = tf( num, den );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( del_3, min(omega_3):0.001:max(omega_3) );
+    title( "Sensitivity Specification" );
     make_nice_plot();
 end
 
@@ -401,12 +407,13 @@ end
 
 % Frequencies of interest
 % omega_4 = [ 1e0 2.5e0 5e0 1e1 2.5e1 5e1 ];
-omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 5e2 1e3 ];
+% omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 5e1 1e2 ];
+omega_4 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 1e1 ];
 
 % Restriction
 % del_4   = 0.5;
 % a_U = 0.01; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
-a_U = 0.5; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+a_U = 0.1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 % num     = [ 1/a_d   , 0 ];
@@ -417,6 +424,7 @@ del_4   = tf( num, den );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( del_4, min(omega_4):0.001:max(omega_4) );
+    title( "Disturbance Rejection at Plant Input Specification" );
     make_nice_plot();
 end
 
@@ -447,18 +455,23 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 1e0 2.5e0 5e0 ];
-omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
+% omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 1e0 5e0 ];
+% omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 ];
+% omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 5e-1 ];
+omega_6 = [ 1e-3 5e-3 1e-2 5e-2 1e-1 ];
 
 % Restriction
 % Upper bound
 % a_U = 1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
-a_U = 2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+% a_U = 1e-1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 1e-2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_hi = tf( num, den );
 % Lower bound
 % a_L = 2.5; eps_L = 0.025;
-a_L = 4; eps_L = 0.025;
+% a_L = 5e-1; eps_L = 0.025;
+a_L = 2.5e-2; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_lo = tf( num, den );
@@ -471,6 +484,7 @@ if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     step( del_6(1) );   hold on ;  grid on;
     step( del_6(2) );   hold off;
+    title( "Reference Tracking Specification" );
     make_nice_plot();
 end
 
@@ -645,7 +659,7 @@ src = './controllerDesigns/';
 
 % --- Controller, G(s)
 G_file  = [ src 'G_R3_embedded_GenTrq.shp' ];
-% G_file  = [ src 'G_12.shp' ];
+% G_file  = [ src 'G_R3_embedded_GenTrq_ver2.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
 else
@@ -680,8 +694,8 @@ fprintf( '\tSynthesize F(s)...' );
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
-% F_file  = [ src 'F_11.fsh' ];
 F_file  = [ src 'F_R3_embedded_GenTrq.fsh' ];
+% F_file  = [ src 'F_R3_embedded_GenTrq_ver2.fsh' ];
 if( isfile(F_file) )
     F = getqft( F_file );
 else

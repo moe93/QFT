@@ -80,6 +80,19 @@ B = B_full( 1:nStatesKeep   , 1:end         );
 C = C_full( 1:end           , 1:nStatesKeep );
 D = D_full( 1:height(C)     , 1:end         );
 
+% ======================== __START__: MODIFICATION ========================
+% This modification is because I exported the file with the wrong actuator
+% cut-off frequency. Fortunately, it does NOT affect the uncertainties in
+% the model.
+A( 5,  5) = -0.1745;
+A( 8,  8) = -0.1745;
+A(11, 11) = -0.1745;
+
+% B( 5,  1) =  0.1745;
+% B( 8,  1) =  0.1745;
+% B(11,  1) =  0.1745;
+% ======================== __ END __: MODIFICATION ========================
+
 % --- Generate state-space model
 % States and inputs names
 stateNames  = [ "phi"           , "omega"           , ...
@@ -647,8 +660,8 @@ fprintf( '\tSynthesize G(s)...' );
 src = './controllerDesigns/';
 
 % --- Controller, G(s)
-G_file  = [ src 'G_R2.shp' ];
-% G_file  = [ src 'G_12.shp' ];
+% G_file  = [ src 'G_R2.shp' ];
+G_file  = [ src 'G_R2_ver2.shp' ];
 if( isfile(G_file) )
     G = getqft( G_file );
 else
