@@ -4,6 +4,11 @@ Quantitative Feedback Theory (QFT) based controller for Floating Offshore Wind T
 ## About
 This repository is a WIP
 
+## Notes
+The ```WWTP_MIMO_2x2_Method2*.m``` files have a problem with the sequential method for the diagonal controller $G_{\beta}(s)$ generation.
+
+Will investigate whenever I get the opportunity.
+
 ## Additions to the basic QFT package
 
 ### Nyquist stability
