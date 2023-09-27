@@ -854,7 +854,7 @@ end
 if( PLOT )
     for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
         for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
-            figure(); bode( PinvPdiag(ROW, COL, 1:8:end, :), wl );  grid on;
+            figure(); bode( PinvPdiag(ROW, COL, 1:16:end, :), wl );  grid on;
             hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
             bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
             
@@ -902,10 +902,10 @@ g14_a = minreal( G_alpha(1, 4), 0.5 );      % Extract controller
 % -----------
 % --- 2ND ROW
 % -----------
-g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
+% g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g21_a );  % Loop-shape
 % qpause;
-% g21_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+g21_a = tf( [-600 -1200 -600], [1 8.75 6] );  % Updated Tuned Controller
 
 g22_a = minreal( G_alpha(2, 2), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g22_a );  % Loop-shape
