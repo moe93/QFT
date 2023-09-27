@@ -17,7 +17,7 @@
 %% Setup environment
 clear variables;
 close all;
-% clc;
+clc;
 set( groot, 'defaultLineLineWidth', 1.5 );	% Set default line width of plots
 set( 0, 'DefaultAxesFontSize', 12 );        % Set a default axes font size
 
@@ -291,21 +291,21 @@ p12     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 p21     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 p22     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 
-P       = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
+P       = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
 
-Pdiag   = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
-Pinv    = tf( zeros(2,2,n_Plants) );                % Pre-allocate memory
-PinvPdiag = tf( zeros(2,2,n_Plants) );              % Pre-allocate memory
+Pdiag   = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
+Pinv    = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
+PinvPdiag = tf( zeros(4,4,n_Plants) );              % Pre-allocate memory
 
 gain_PinvPdiag = zeros( size(PinvPdiag) );          % Pre-allocate memory
 
 % [INFO] ...
 fprintf( 'Step 1:' );
-fprintf( '\tComputing QFT templates using %3i plants...', n_Plants );
-
+fprintf( '\tComputing QFT templates using %3i plants...\n', n_Plants );
+tic;
 NDX = 1;                                            % Plant counter
-for var1 = 1:grid_A2_1                               % Loop over w
-    A2_1 = A2_1_g( var1 );                            % ....
+for var1 = 1:grid_A2_1                              % Loop over w
+    A2_1 = A2_1_g( var1 );                          % ....
     
     for var2 = 1:grid_A2_2                           % Loop over w
         A2_2 = A2_2_g( var2 );                        % ....
@@ -350,6 +350,37 @@ for var1 = 1:grid_A2_1                               % Loop over w
                                         B_g(2, 2) = B2_2;
                                         B_g(2, 3) = B2_3;
                                         B_g(2, 4) = B2_4;
+                                        
+                                        % AVERAGED VALUES INSTEAD OF
+                                        % GRIDDED
+                                        % --- 2nd row
+                                        C_g(2, 1) = mean( [min_C2_1, max_C2_1] );
+                                        C_g(2, 2) = mean( [min_C2_2, max_C2_2] );
+                                        C_g(3, 3) = mean( [min_C3_3, max_C2_3] );
+                                        C_g(2, 4) = mean( [min_C2_4, max_C2_4] );
+                                        C_g(2, 9) = mean( [min_C2_9, max_C2_9] );
+                                        % --- 3rd row
+                                        C_g(3, 1) = mean( [min_C3_1, max_C3_1] );
+                                        C_g(3, 2) = mean( [min_C3_2, max_C3_2] );
+                                        C_g(3, 5) = mean( [min_C3_5, max_C3_5] );
+                                        C_g(3, 6) = mean( [min_C3_6, max_C3_6] );
+                                        C_g(3, 9) = mean( [min_C3_9, max_C3_9] );
+                                        % --- 4th row
+                                        C_g(4, 1) = mean( [min_C4_1, max_C4_1] );
+                                        C_g(4, 2) = mean( [min_C4_2, max_C4_2] );
+                                        C_g(4, 7) = mean( [min_C4_7, max_C4_7] );
+                                        C_g(4, 8) = mean( [min_C4_8, max_C4_8] );
+                                        C_g(4, 9) = mean( [min_C4_9, max_C4_9] );
+
+                                        % --- 2nd row
+                                        D_g(2, 1) = mean( [min_D2_1, max_D2_1] );
+                                        D_g(2, 2) = mean( [min_D2_2, max_D2_2] );
+                                        % --- 3rd row
+                                        D_g(3, 1) = mean( [min_D3_1, max_D3_1] );
+                                        D_g(3, 3) = mean( [min_D3_3, max_D3_3] );
+                                        % --- 4th row
+                                        D_g(4, 1) = mean( [min_D4_1, max_D4_1] );
+                                        D_g(4, 4) = mean( [min_D4_4, max_D4_4] );
                                         
                                         % --- Generate grided TF from grided SS model
                                         sys_g = ss( A_g, B_g, C_g, D_g );
@@ -417,9 +448,10 @@ for var1 = 1:grid_A2_1                               % Loop over w
         end
     end
 end
-
+toc;
 % [INFO] ...
 fprintf( ACK );
+
 
 %% Step 2: The Nominal Plant
 
@@ -431,27 +463,24 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-k11_0 = mean( [min_k11, max_k11] );
-t11_0 = mean( [min_t11, max_t11] );
-k12_0 = mean( [min_k12, max_k12] );
-t12_0 = mean( [min_t12, max_t12] );
+P0 = P( :, :, 1, 1 );       % Nominal Transfer Function
+% P0 = TF;                     % Nominal Transfer Function
 
-k21_0 = mean( [min_k21, max_k21] );
-t21_0 = mean( [min_t21, max_t21] );
-k22_0 = mean( [min_k22, max_k22] );
-t22_0 = mean( [min_t22, max_t22] );
+% % --- Append to the end of the gridded plants
+% P( :, :, end+1, : ) = P0;
 
-p11_0 = tf( k11_0, [t11_0, 1] );
-p12_0 = tf( k12_0, [t12_0, 1] );
-p21_0 = tf( k21_0, [t21_0, 1] );
-p22_0 = tf( k22_0, [t22_0, 1] );
+% --- Cleanup plants transfer function by removing values below 1e-16
+for ii = 1:length( P )
+    [n, d] = tfdata( minreal(P( :, :, ii, 1 ), 0.01) );
+    n = cellfun(@(x) {x.*(abs(x) > 1e-08)}, n);
+    d = cellfun(@(x) {x.*(abs(x) > 1e-08)}, d);
+    P( :, :, ii, 1 ) = tf(n, d);
+end
 
-% Nominal plant TF
-P0 = [ p11_0, p12_0  ;
-       p21_0, p22_0 ];
-
-% --- Append to the end of the gridded plants
-P( :, :, end+1, : ) = P0;
+% --- Incorporate actuator TF
+for ii = 1:length( P )
+    P( :, :, ii, 1 ) = P( :, :, ii, 1 ) * M_act;
+end
 
 % --- Define nominal plant case
 nompt = length( P );
@@ -460,14 +489,22 @@ nompt = length( P );
 fprintf( ACK );
 
 % --- Plot bode diagram
-ww = logspace( -7, -2, 1024 );
+ww = logspace( log10(1e-2), log10(7.5e1), 2048 );
 [p0, theta0] = bode( P0, ww );
-
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, '-', P0, '.r', ww(1:32:end) ); grid on;
     make_nice_plot();
 end
+
+% % --- Plot root locus
+% if( PLOT )
+%     figure( CNTR ); CNTR = CNTR + 1;
+%     rlocus( P0 );
+%     title('Root Locus of Plant')
+%     make_nice_plot();
+% end
+
 
 %% Step 3: QFT Template
 
@@ -476,7 +513,7 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500 1000 ];
+w = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 7.5e-1 1e0 2.5e0 5e0 7.5e0 1e1 5e1 7.5e1 ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -488,12 +525,12 @@ if( PLOT )
             hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
             set( hLegend, 'location', 'southeast' );    % Access and change location
             
-            % --- Change plot limits
-            if( ROW == 2 && COL == 1)
-                xmin = -270; xmax = 45; dx = 45;
-                xlim( [xmin xmax] );
-                xticks( xmin:dx:xmax )
-            end
+%             % --- Change plot limits
+%             if( ROW == 2 && COL == 1)
+%                 xmin = -270; xmax = 45; dx = 45;
+%                 xlim( [xmin xmax] );
+%                 xticks( xmin:dx:xmax )
+%             end
 
             txt = ['Plant Templates for p' num2str(ROW) num2str(COL) '(s)' ];
             title( txt )
@@ -525,6 +562,7 @@ Lambda_0 = P0_0 .* inv(P0_0).';
 
 % --- RGA for s=jw=inf
 P0_inf = freqresp( P0, 1e16 );
+P0_inf = abs( P0_inf );                 % Make sure we get sensical numbers
 Lambda_inf = P0_inf .* inv(P0_inf).';
 
 % --- Determine pairing
