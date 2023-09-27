@@ -36,7 +36,7 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-PLOT = false;                               % COMMENT OUT TO PRINT FIGURES
+% PLOT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
@@ -513,7 +513,10 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 7.5e-1 1e0 2.5e0 5e0 7.5e0 1e1 5e1 7.5e1 ];
+w = [ 1e-2 2.5e-2 5e-2 7.5e-2 ...
+      1e-1 2.5e-1 5e-1 7.5e-1 ...
+      1e0  2.5e0  5e0  7.5e0  ...
+      1e+1 2.5e+1 5e+1 7.5e+1 ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -607,10 +610,16 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500 1000 ];
+omega_1 = [ 1e-2 2.5e-2 5e-2 7.5e-2 ...
+            1e-1 2.5e-1 5e-1 7.5e-1 ...
+            1e0  2.5e0  5e0  7.5e0  ...
+            1e+1 2.5e+1 5e+1 7.5e+1 ];
 
 % Restriction (for p_ii, i=1,2)
-W_s         = 1.01;
+% W_s         = 1.66;
+W_s         = 1.46;
+% W_s         = 1.08;
+% W_s         = 1.01;
 del_1       = W_s;
 PM          = 180 - 2*(180/pi)*acos(0.5/W_s);       % In deg
 GM          = 20*log10( 1+1/W_s );                   % In dB
@@ -626,48 +635,92 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
-% --- Type 3
-%   Sensitivity or disturbances at plant output specification
+%%
+% -----------------------------------------------------------------------
+% -- Type 3: Sensitivity or output disturbance rejection specification --
+% -----------------------------------------------------------------------
+%
+% Typically use the following form:
+%   
+%   --> del_3(s) = s/(s + a_d)
+%
+%   By selecting just one parameter, the pole a_d, we can achieve different
+% levels of disturbance rejection. The higher the parameter a_d, the more
+% significant the attenuation of the effect of the disturbance.
+%
+%   Typical choice for a_d is s.t. ( a_d >= max(omega_3) )
 %
 
 % Frequencies of interest
-omega_3 = [ 0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 ];
+omega_3 = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 ];
 
 % Restriction
-num     = [ 1 , 0 ];
-den     = [ 1 , 1 ];
+a_d     = 1e-1;
+num     = [ 1/a_d   , 0 ];
+den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
 
+% --- Plot bounds
 if( PLOT )
-    % --- PLOT bode response of del_3(s)
     figure( CNTR ); CNTR = CNTR + 1;
-
     w_del_3 = logspace( log10(w(1)), log10(w(end)));
     [mag, ~] = bode( del_3, w_del_3 );
     mag_dB = db( squeeze(mag) );
 
     semilogx( w_del_3, mag_dB ); grid on;
+
+    title( "Sensitivity Specification" );
+    make_nice_plot();
 end
 
-% --- Type 6
-%   Reference tracking specification
+
+%%
+% --------------------------------------------------
+% ---- Type 6: Reference tracking specification ----
+% --------------------------------------------------
+%
+% A practical selection is:
+%
+%                         (1-eps_L)
+%   --> del_6_lo(s) = -----------------
+%                       (s/a_L + 1)^2
+%       With
+%               0 <= eps_L
+%
+%
+%                           (s/a_U + 1)*(1+eps_U)
+%   --> del_6_hi(s) = ----------------------------------
+%                       ((s/wn)^2 + (2*zeta*s/wn) + 1)
+%       With
+%               0 <= eps_U; zeta = 0.8; wn = 1.25*a_U/zeta
+%
+%   Normally, we do not ask the system to follow a high-frequency
+% reference. In this way, we reduce high-frequency activity of the
+% actuators and then avoid potential mechanical fatigue problems.
 %
 
 % Frequencies of interest
-omega_6 = [ 0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 ];
+omega_6 = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 ];
+
 
 % Restriction
+% -----------
 % Upper bound
-syms s;
-num = [ 2 , 1.02 ];
-den = sym2poly( 0.8*s^2 + 1.7*s + 1 );
+% -----------
+a_U = 2.5e-2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+num = [ conv([1/a_U 1], [0 1+eps_U]) ];
+den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
+% -----------
 % Lower bound
-num = 0.98;
-den = sym2poly( 0.4*s^2 + 2*s + 1 );
+% -----------
+a_L = 5.0e-2; eps_L = 0.025;
+num = 1-eps_L;
+den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
-clear s;
+% -----------
 % Tracking weight
+% -----------
 del_6 = [ del_6_U  ;
           del_6_L ];
 
@@ -675,6 +728,8 @@ if( PLOT )
     % --- PLOT step response of del_6_U(s) and del_6_L(s)
     figure( CNTR ); CNTR = CNTR + 1;
     stepplot( del_6_U, del_6_L ); grid on;
+    title( "Reference Tracking Specification" );
+    make_nice_plot();
 end
 
 % [INFO] ...
@@ -768,9 +823,9 @@ end
 %   need/want to tweak it to avoid certain frequencies for instance. 
 %
 
-err         = [ inf, inf; inf, inf ];
-newErr      = [  0 ,  0 ;  0 ,  0  ];
-nPinvPdiag  = [  0 ,  0 ;  0 ,  0  ];
+err         = inf.* ones( size(P0) );
+newErr      = zeros( size(P0) );
+nPinvPdiag  = zeros( size(P0) );
 G_alpha     = tf( zeros(size(nPinvPdiag)) );
 
 for ROW = 1:width( PinvPdiag )              % Loop over ROWS
@@ -821,35 +876,109 @@ end
 %   G_α(s) = g_α_ij controller
 %
 
-% g11_a = minreal( G_alpha(1, 1), 0.5 );      % Extract controller
+% -----------
+% --- 1ST ROW
+% -----------
+g11_a = minreal( G_alpha(1, 1), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
 % % qpause;
 % g11_a = tf( 0.0001429, [1 0.00015] );       % Updated controller
-g11_a = tf( [1.24, 0.16] , [1 0.01]    );   % Dr. Garcia controller
 
-% g12_a = minreal( G_alpha(1, 2), 0.5 );      % Extract controller
+g12_a = minreal( G_alpha(1, 2), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g12_a );  % Loop-shape
 % qpause;
 % g12_a = tf( -3.6064e-08, [1 0.00015] );     % Updated controller
-g12_a = tf( -[1.53, 0.19] , [1 0.01]    );  % Dr. Garcia controller
 
-% g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
+g13_a = minreal( G_alpha(1, 3), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g13_a );  % Loop-shape
+% qpause;
+% g13_a = tf( -3.6064e-08, [1 0.00015] );     % Updated controller
+
+g14_a = minreal( G_alpha(1, 4), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g14_a );  % Loop-shape
+% qpause;
+% g14_a = tf( -3.6064e-08, [1 0.00015] );     % Updated controller
+
+% -----------
+% --- 2ND ROW
+% -----------
+g21_a = minreal( G_alpha(2, 1), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g21_a );  % Loop-shape
 % qpause;
 % g21_a = tf( 0.2216, [1 0.00015] );          % Updated controller
-g21_a = tf( -[0.18, 0.1] , [1 0.01]    );   % Dr. Garcia controller
 
-% g22_a = minreal( G_alpha(2, 2), 0.5 );      % Extract controller
+g22_a = minreal( G_alpha(2, 2), 0.5 );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g22_a );  % Loop-shape
 % qpause;
 % g22_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
-g22_a = tf( [1.24, 0.16] , [1 0.01]    );   % Dr. Garcia controller
 
-G_alpha = [ g11_a, g12_a ;
-            g21_a, g22_a ];
+g23_a = minreal( G_alpha(2, 3), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g23_a );  % Loop-shape
+% qpause;
+% g23_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+g24_a = minreal( G_alpha(2, 4), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g24_a );  % Loop-shape
+% qpause;
+% g24_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+% -----------
+% --- 3RD ROW
+% -----------
+g31_a = minreal( G_alpha(3, 1), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g31_a );  % Loop-shape
+% qpause;
+% g31_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+g32_a = minreal( G_alpha(3, 2), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g32_a );  % Loop-shape
+% qpause;
+% g32_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+g33_a = minreal( G_alpha(3, 3), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g33_a );  % Loop-shape
+% qpause;
+% g33_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+g34_a = minreal( G_alpha(3, 4), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g34_a );  % Loop-shape
+% qpause;
+% g34_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+% -----------
+% --- 4TH ROW
+% -----------
+g41_a = minreal( G_alpha(4, 1), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g41_a );  % Loop-shape
+% qpause;
+% g41_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+g42_a = minreal( G_alpha(4, 2), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g42_a );  % Loop-shape
+% qpause;
+% g42_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+g43_a = minreal( G_alpha(4, 3), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g43_a );  % Loop-shape
+% qpause;
+% g43_a = tf( 0.2216, [1 0.00015] );          % Updated controller
+
+g44_a = minreal( G_alpha(4, 4), 0.5 );      % Extract controller
+% controlSystemDesigner( 'bode', 1, g44_a );  % Loop-shape
+% qpause;
+% g44_a = tf( 0.00013037, [1 0.00015] );      % Updated controller
+
+G_alpha = [ g11_a, g12_a, g13_a, g14_a ;
+            g21_a, g22_a, g23_a, g24_a ;
+            g31_a, g32_a, g33_a, g34_a ;
+            g41_a, g32_a, g33_a, g44_a ];
 
 % [INFO] ...
 fprintf( ACK );
+
+%% ================================================
+%  ===== STOPPED HERE. CONTINUE EDITING BELOW =====
+%  ================================================
 
 %% Step 9.1: Synthesize Feedback Controller G_β(s)
 
