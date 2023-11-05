@@ -283,8 +283,6 @@ P0_11 = P11( 1, 1, nompt );
 % --- Pick one (for now)
 P0 = P0_11;
 P = P11;
-% P0 = P0_12;
-% P = P12;
 
 % [INFO] ...
 fprintf( ACK );
@@ -378,6 +376,7 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
+%%
 % -----------------------------------------------------------------------
 % -- Type 3: Sensitivity or output disturbance rejection specification --
 % -----------------------------------------------------------------------
@@ -413,6 +412,7 @@ if( PLOT )
 end
 
 
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
@@ -437,6 +437,7 @@ if( PLOT )
     make_nice_plot( PRNT, figDir, 'distReject_spec' );
 end
 
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -580,6 +581,8 @@ end
 % [INFO] ...
 fprintf( ACK );
 
+
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
@@ -612,6 +615,8 @@ end
 % [INFO] ...
 fprintf( ACK );
 
+
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
