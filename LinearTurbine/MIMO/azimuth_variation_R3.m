@@ -40,7 +40,7 @@ PLOT = true;                                %#ok<NASGU> If true, plot figures!
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
-PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
+% PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 % --- [INFO] Strings
 ACK = 'COMPLETED\n\n';
@@ -140,17 +140,19 @@ M_act = tf( 1, [1/wn_act 1] );  % Actuator dynamics TF
 %
 
 [~, ~, n_Plants] = size( A_full ) ;                 % Number of plants
+[~, n_Inputs, ~] = size( B_full ) ;                 % Number of inputs
+[n_Outputs, ~,~] = size( D_full ) ;                 % Number of outputs
 
 p11     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 p12     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 p21     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 p22     = tf( zeros(1,1,n_Plants) );                % Pre-allocate memory
 
-P       = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
+P       = tf( zeros(n_Outputs,n_Inputs,n_Plants) ); % Pre-allocate memory
 
-Pdiag   = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
-Pinv    = tf( zeros(4,4,n_Plants) );                % Pre-allocate memory
-PinvPdiag = tf( zeros(4,4,n_Plants) );              % Pre-allocate memory
+Pdiag   = tf( zeros(n_Outputs,n_Inputs,n_Plants) ); % Pre-allocate memory
+Pinv    = tf( zeros(n_Outputs,n_Inputs,n_Plants) ); % Pre-allocate memory
+PinvPdiag = tf( zeros(n_Outputs,n_Inputs,n_Plants) );% Pre-allocate memory
 
 gain_PinvPdiag = zeros( size(PinvPdiag) );          % Pre-allocate memory
 
@@ -257,13 +259,9 @@ P( :, :, end+1, : ) = P0;
 % [x-dim, y-dim, z-dim] = [nrowsP, ncolsP, nvarsP]
 [nrowsP, ncolsP, nvarsP] = size( P );
 
-% --- Cleanup plants transfer function by removing values below 1e-08
-for ii = 1:nvarsP
-    [n, d] = tfdata( minreal(P( :, :, ii, 1 ), 0.01) );
-    n = cellfun(@(x) {x.*(abs(x) > 1e-08)}, n);
-    d = cellfun(@(x) {x.*(abs(x) > 1e-08)}, d);
-    P( :, :, ii, 1 ) = tf(n, d);
-end
+% --- Cleanup plants transfer function by removing values below 1e-08 and
+% minreal of 0.01
+P = numerical_cleanup( P, 1e-08, 0.01 );
 
 % --- Define nominal plant case (nvarsP because we attached nominal plant
 % at the end of the plants' matrices
@@ -273,21 +271,13 @@ nompt = nvarsP;
 fprintf( ACK );
 
 % --- Plot bode diagram
-ww = logspace( log10(1e-2), log10(7.5e1), 2048 );
+ww = logspace( log10(5e-2), log10(7.5e0), 2048 );
 [p0, theta0] = bode( P0, ww );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, '-', P0, '.r', ww(1:32:end) ); grid on;
-    make_nice_plot();
+    make_nice_plot( PRNT, './figs', 'bode_plot' );
 end
-
-% % --- Plot root locus
-% if( PLOT )
-%     figure( CNTR ); CNTR = CNTR + 1;
-%     rlocus( P0 );
-%     title('Root Locus of Plant')
-%     make_nice_plot();
-% end
 
 
 %% Step 3: QFT Template
@@ -297,10 +287,9 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 1e-2 2.5e-2 5e-2 7.5e-2 ...
+w = [ 5e-2 7.5e-2 ...
       1e-1 2.5e-1 5e-1 7.5e-1 ...
-      1e0  2.5e0  5e0  7.5e0  ...
-      1e+1 2.5e+1 5e+1 7.5e+1 ];
+      1e0  2.5e0  5e0  7.5e0 ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -311,19 +300,12 @@ if( PLOT )
             % --- Change legend position
             hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
             set( hLegend, 'location', 'southeast' );    % Access and change location
-            
-%             % --- Change plot limits
-%             if( ROW == 2 && COL == 1)
-%                 xmin = -270; xmax = 45; dx = 45;
-%                 xlim( [xmin xmax] );
-%                 xticks( xmin:dx:xmax )
-%             end
 
             txt = ['Plant Templates for p' num2str(ROW) num2str(COL) '(s)' ];
             title( txt )
             
             % --- Beautify plot
-            make_nice_plot();
+            make_nice_plot( PRNT, './figs', txt );
         end
     end
 end
@@ -347,7 +329,6 @@ fprintf( ACK );
 P0_0    = dcgain( P0 );
 [U,S,V] = svd( P0_0 );
 P0_0inv = V/S*U.';
-% Lambda_0 = P0_0 .* inv(P0_0).';
 Lambda_0 = P0_0 .* P0_0inv.';
 
 % === NEED REVISION
@@ -375,7 +356,6 @@ P0_inf = freqresp( P0, 1e16 );
 P0_inf = abs( P0_inf );                 % Make sure we get sensical numbers
 [U,S,V] = svd( P0_inf );
 P0_infinv = V/S*U.';
-% Lambda_inf = P0_inf .* inv(P0_inf).';
 Lambda_inf = P0_inf .* P0_infinv.';
 
 % --- Determine pairing
@@ -429,10 +409,9 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 1e-2 2.5e-2 5e-2 7.5e-2 ...
+omega_1 = [ 5e-2 7.5e-2 ...
             1e-1 2.5e-1 5e-1 7.5e-1 ...
-            1e0  2.5e0  5e0  7.5e0  ...
-            1e+1 2.5e+1 5e+1 7.5e+1 ];
+            1e0  2.5e0  5e0  7.5e0 ];
 
 % Restriction (for p_ii, i=1,2)
 % W_s         = 1.66;
@@ -471,7 +450,7 @@ fprintf( '\tDefining performance specifications...' );
 %
 
 % Frequencies of interest
-omega_3 = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 ];
+omega_3 = [ 5e-2 7.5e-2 1e-1 ];
 
 % Restriction
 a_d     = 1e-1;
@@ -487,9 +466,10 @@ if( PLOT )
     mag_dB = db( squeeze(mag) );
 
     semilogx( w_del_3, mag_dB ); grid on;
-
-    title( "Sensitivity Specification" );
-    make_nice_plot();
+    
+    txt = ["Sensitivity Specification"];
+    title( txt );
+    make_nice_plot( PRNT, './figs', txt );
 end
 
 
@@ -519,7 +499,7 @@ end
 %
 
 % Frequencies of interest
-omega_6 = [ 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 ];
+omega_6 = [ 5e-2 7.5e-2 1e-1 ];
 
 
 % Restriction
@@ -547,8 +527,9 @@ if( PLOT )
     % --- PLOT step response of del_6_U(s) and del_6_L(s)
     figure( CNTR ); CNTR = CNTR + 1;
     stepplot( del_6_U, del_6_L ); grid on;
-    title( "Reference Tracking Specification" );
-    make_nice_plot();
+    txt = ["Reference Tracking Specification"];
+    title( txt );
+    make_nice_plot( PRNT, './figs', txt);
 end
 
 % [INFO] ...
@@ -614,42 +595,13 @@ wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 % [INFO] ...
 fprintf( '\t> Computing G_alpha(s)...' );
 
-% % --- Generate diagonal matrix
-% P_diag  = tf( zeros(size(P)) );             % Pre-allocate memory
-% for ii  = 1:width( P )
-%     P_diag( ii, ii, :, : )  = P( ii, ii, :, : );
-% end
-% 
-% % --- Compute the gain of all elements in P^1(s) * P_diag(s)
-% TOL = 0.01;                                 % Tolerance for cancellation
-% Pinv      = inv( P );                       % Compute P^-1
-% PinvPdiag = minreal( Pinv * P_diag, TOL );  % Compute P^-1*P_diag
-% 
-% gain_PinvPdiag = zeros( size(P) );          % Pre-allocate memory
-% for ROW = 1:width( PinvPdiag )              % Loop over ROWS
-%     for COL = 1:width( PinvPdiag )          % Loop over COLS
-%         for NDX = 1:n_Plants                % Loop over variations
-% 
-%             % Get the n-th plant
-%             nth_Plant = PinvPdiag(ROW, COL, NDX, :);
-%             % Compute DC gain
-%             kP = dcgain( nth_Plant );
-%             % Store in a matrix
-%             gain_PinvPdiag(ROW, COL, NDX, :) = kP;
-% 
-%         end  
-%     end
-% end
-
-% --- Compute the mean value
+% --- Compute the mean gain value of (Pinv * Pdiag) 
 NROWS = width( gain_PinvPdiag );
 NCOLS = width( gain_PinvPdiag );
 meanGain_PinvPdiag = zeros( NROWS, NCOLS ); % Pre-allocate memory
 for ROW = 1:NROWS                           % Loop over ROWS
     for COL = 1:NCOLS                       % Loop over COLS
-
         meanGain_PinvPdiag(ROW, COL) = mean( gain_PinvPdiag(ROW, COL, :) );
-
     end
 end
 
@@ -695,7 +647,7 @@ end
 if( PLOT )
     for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
         for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
-            figure(); bode( PinvPdiag(ROW, COL, 1:16:end, :), wl );  grid on;
+            figure(); bode( PinvPdiag(ROW, COL, 1:1:end, :), wl );  grid on;
             hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
             bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
             
@@ -703,7 +655,11 @@ if( PLOT )
             text_2 = [  'p_{' num2str(COL) num2str(COL) '}(s)' ];
             text_3 = [  'g_{' num2str(ROW) num2str(COL) '}(s)' ];
             title( [text_1 ' \times ' text_2 ' and ' text_3] );
-            make_nice_plot();
+
+            txt = ['pstar_' num2str(ROW) num2str(COL) ' x ' ...
+                   'p_' num2str(COL) num2str(COL) ' and ' ...
+                   'g_' num2str(ROW) num2str(COL) ];
+            make_nice_plot( PRNT, './figs', txt );
         end
     end
 end
@@ -723,12 +679,10 @@ TOL = 0.1;
 % -----------
 % --- 1ST ROW
 % -----------
-% g11_a = minreal( G_alpha(1, 1), TOL );      % Extract controller
+g11_a = minreal( G_alpha(1, 1), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
 % % qpause;
-g11_a = tf( [2.0943e+03 1.1824e+07 1.6689e+10], [1 -22.9146 6.0936e+03 2.9767e+04] );     % Updated Tuned controller
-% g11_a_tuned = tf( [2.0943e+03 1.1824e+07 1.6689e+10], [1 -22.9146 6.0936e+03 2.9767e+04] ); % Updated Tuned controller
-% figure(); bode(g11_a); hold on; bode(g11_a_tuned); grid on; make_nice_plot;
+% g11_a = tf( [2.0943e+03 1.1824e+07 1.6689e+10], [1 -22.9146 6.0936e+03 2.9767e+04] );     % Updated Tuned controller
 
 
 g12_a = minreal( G_alpha(1, 2), TOL );      % Extract controller
@@ -873,7 +827,8 @@ fprintf( '\t> Computing G_beta(s)...' );
 %   diagonal matrix, nulling the off-diagonal terms as much as possible.
 %
 
-TOL     = 1.0;
+% TOL     = 1.0;
+TOL     = 0.1;
 Px      = minreal( P * G_alpha, TOL );              % Extended matrix
 Pxinv   = minreal( inv(Px), TOL );                  % Invert extended matrix
 
@@ -906,8 +861,6 @@ Pxinv   = minreal( inv(Px), TOL );                  % Invert extended matrix
 
 % qx11 = tf( zeros(NROWS, NCOLS) );                   % Pre-allocate memory
 qx11( 1, 1, : ) = 1/Pxinv( 1, 1, : );             % Initialize
-
-
 
 % --- Directory where QFT generated controllers are stored
 src = './controllerDesigns/';
@@ -966,7 +919,7 @@ for i=1:1
         txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
         % xlim( [-360 0] ); ylim( [-10 30] );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -997,7 +950,7 @@ for i=1:1
         plotbnds( bdb2(:, :, i) );
         txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -1026,7 +979,7 @@ for i=1:1
         plotbnds( bdb7(:, :, i) );
         txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -1046,7 +999,7 @@ for i=1:1
         plotbnds( bdb( :, :, i ) );
         txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -1061,7 +1014,7 @@ for i=1:1
         plotbnds( ubdb( :, :, i ) );
         txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -1082,6 +1035,11 @@ for ii = 2:2
     gg = Pxinv(ii, ii, :) - ...
          ((Pxinv(ii, ii-1, :) * Pxinv(ii-1, ii, :)) / ...
          (Pxinv(ii-1, ii-1, :) + g11_b));
+    % --- New addition to clear up numerical errors
+    % --- Cleanup plants transfer function by removing values below 1e-08 and
+    % minreal of 0.01
+    gg = numerical_cleanup( gg, 1e-08, 1 );
+    % --- END
     px22( 1, 1, : ) = minreal( gg, 0.1 );
 end
 qx22( 1, 1, : ) = 1/px22( 1, 1, : );
@@ -1152,7 +1110,7 @@ for i=2:2
         txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
         % xlim( [-360 0] ); ylim( [-10 30] );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -1183,7 +1141,7 @@ for i=2:2
         plotbnds( bdb2(:, :, i) );
         txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -1212,7 +1170,7 @@ for i=2:2
         plotbnds( bdb7(:, :, i) );
         txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -1232,7 +1190,7 @@ for i=2:2
         plotbnds( bdb( :, :, i ) );
         txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -1247,7 +1205,7 @@ for i=2:2
         plotbnds( ubdb( :, :, i ) );
         txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
