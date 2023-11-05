@@ -28,6 +28,7 @@ set( 0, 'DefaultAxesTickLabelInterpreter', 'latex' );
 
 format compact;
 fontsize = 12;
+tic
 
 %% Flags/Constants
 
@@ -302,7 +303,7 @@ gain_PinvPdiag = zeros( size(PinvPdiag) );          % Pre-allocate memory
 % [INFO] ...
 fprintf( 'Step 1:' );
 fprintf( '\tComputing QFT templates using %3i plants...\n', n_Plants );
-tic;
+
 NDX = 1;                                            % Plant counter
 for var1 = 1:grid_A2_1      % Loop over w
     A2_1 = A2_1_g( var1 );  % ....
@@ -453,7 +454,7 @@ for var1 = 1:grid_A2_1      % Loop over w
         end
     end
 end
-toc;
+
 % [INFO] ...
 fprintf( ACK );
 
@@ -915,62 +916,33 @@ for ROW = 1:width( PinvPdiag )              % Loop over ROWS
     end
 end
 
-% --- Plot to visualize
-if( PLOT )
-    for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
-        for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
-            figure(); bode( PinvPdiag(ROW, COL, 1:16:end, :), wl );  grid on;
-            hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
-            bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
-            
-            text_1 = [ 'p*_{' num2str(ROW) num2str(COL) '}(s)' ];
-            text_2 = [  'p_{' num2str(COL) num2str(COL) '}(s)' ];
-            text_3 = [  'g_{' num2str(ROW) num2str(COL) '}(s)' ];
-            title( [text_1 ' \times ' text_2 ' and ' text_3] );
-            make_nice_plot();
-        end
-    end
-end
-
-
-% --- As we can see, the initial G_α(s) controller based on the
-%   mean value works great for low frequencies. However, we need it to
-%   then filter out the dynamics before the nmp zero at −2 × 10–4
-%   rad/s
-%
-%   Let's use the Control System Designer Toolbox to loopshape the
-%   G_α(s) = g_α_ij controller
-%
-
 TOL = 0.1;
 % TOL = 1.0;
 % -----------
 % --- 1ST ROW
 % -----------
-% g11_a = minreal( G_alpha(1, 1), TOL );      % Extract controller
-% controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
-% % qpause;
+% g11_a = minreal( G_alpha(1, 1), TOL );                      % Extract controller
+% controlSystemDesigner( 'bode', 1, g11_a );                  % Loop-shape
+% qpause;
 g11_a = tf( [2.0943e+03 1.1824e+07 1.6689e+10], [1 -22.9146 6.0936e+03 2.9767e+04] );     % Updated Tuned controller
-% g11_a_tuned = tf( [2.0943e+03 1.1824e+07 1.6689e+10], [1 -22.9146 6.0936e+03 2.9767e+04] ); % Updated Tuned controller
-% figure(); bode(g11_a); hold on; bode(g11_a_tuned); grid on; make_nice_plot;
 
 
-g12_a = minreal( G_alpha(1, 2), TOL );      % Extract controller
-% controlSystemDesigner( 'bode', 1, g12_a );  % Loop-shape
+% g12_a = minreal( G_alpha(1, 2), TOL );                      % Extract controller
+% controlSystemDesigner( 'bode', 1, g12_a );                  % Loop-shape
 % qpause;
-% g12_a = tf( 100.8, [1 10] );                  % Updated Tuned controller
+g12_a = tf( [2.114e05 8.769e06], [1 190.3 77.1 38.45] );    % Updated Tuned controller
 
 
-g13_a = minreal( G_alpha(1, 3), TOL );      % Extract controller
-% controlSystemDesigner( 'bode', 1, g13_a );  % Loop-shape
+% g13_a = minreal( G_alpha(1, 3), TOL );                      % Extract controller
+% controlSystemDesigner( 'bode', 1, g13_a );                  % Loop-shape
 % qpause;
-% g13_a = tf( [4.3875e+03 1.6155e+07 3.5758e+09], [1 -159.7504 -223.9247 -8.8853e+04] );      % Updated Tuned controller
+g13_a = tf( [2.08e06 4.571e08], [1 3435 -343.2 858.7] );    % Updated Tuned controller
 
 
-g14_a = minreal( G_alpha(1, 4), TOL );      % Extract controller
-% controlSystemDesigner( 'bode', 1, g14_a );  % Loop-shape
+% g14_a = minreal( G_alpha(1, 4), TOL );                      % Extract controller
+% controlSystemDesigner( 'bode', 1, g14_a );                  % Loop-shape
 % qpause;
-% g14_a = tf( [4.3875e+03 1.6155e+07 3.5758e+09], [1 -159.7504 -223.9247 -8.8853e+04] );      % Updated Tuned controller
+g14_a = tf( [2.428e05 1.214e08], [1 1500 -224.4 843.8] );   % Updated Tuned controller
 
 
 % -----------
@@ -1064,6 +1036,31 @@ G_alpha = [ g11_a, g12_a, g13_a, g14_a ;
 
 % [INFO] ...
 fprintf( ACK );
+
+% --- Plot to visualize
+if( PLOT )
+    for ROW = 1:width( gain_PinvPdiag )         % Loop over ROWS
+        for COL = 1:width( gain_PinvPdiag )     % Loop over COLS
+            figure(); bode( PinvPdiag(ROW, COL, 1:16:end, :), wl );  grid on;
+            hold on ; bode( G_alpha( ROW, COL ), wl(1:16:end), 'r*' );
+            bode( G_alpha( ROW, COL ), wl(1:16:end), 'r--' );
+            
+            text_1 = [ 'p*_{' num2str(ROW) num2str(COL) '}(s)' ];
+            text_2 = [  'p_{' num2str(COL) num2str(COL) '}(s)' ];
+            text_3 = [  'g_{' num2str(ROW) num2str(COL) '}(s)' ];
+            title( [text_1 ' \times ' text_2 ' and ' text_3] );
+            make_nice_plot();
+        end
+    end
+end
+% --- As we can see, the initial G_α(s) controller based on the
+%   mean value works great for low frequencies. However, we need it to
+%   then filter out the dynamics before the nmp zero at −2 × 10–4
+%   rad/s
+%
+%   Let's use the Control System Designer Toolbox to loopshape the
+%   G_α(s) = g_α_ij controller and reiterate over this process
+%
 
 % Cleanup
 % clearvars g* -except gain_PinvPdiag
@@ -1489,6 +1486,7 @@ lpshape( wl, ubdb(:, :, 2), L22, g22_b );
 
 % [INFO] ...
 fprintf( ACK );
+toc
 
 %% Step 10: Synthesize Prefitler F(s)
 
