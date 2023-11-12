@@ -683,109 +683,111 @@ TOL = 0.1;
 % -----------
 % --- 1ST ROW
 % -----------
-g11_a = minreal( G_alpha(1, 1), TOL );      % Extract controller
+% g11_a = minreal( G_alpha(1, 1), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g11_a );  % Loop-shape
 % % qpause;
-% g11_a = tf( 8.6632e+10, [1 0.9436 -2.3539 2.3176 -3.8133] );                                  % Updated Tuned controller
+g11_a = tf( 8.6632e+10, [1 0.9436 -2.3539 2.3176 -3.8133] );                                  % Updated Tuned controller
 
 
-g12_a = minreal( G_alpha(1, 2), TOL );      % Extract controller
+% g12_a = minreal( G_alpha(1, 2), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g12_a );  % Loop-shape
 % qpause;
-% g12_a = tf( [6.5064e+11 6.7252e+11], [1 -498.4340 -781.5137 -745.7014 -444.6419] );           % Updated Tuned controller
+g12_a = tf( [6.5064e+11 6.7252e+11], [1 -498.4340 -781.5137 -745.7014 -444.6419] );           % Updated Tuned controller
 
 
-g13_a = minreal( G_alpha(1, 3), TOL );      % Extract controller
+% g13_a = minreal( G_alpha(1, 3), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g13_a );  % Loop-shape
 % qpause;
-% g13_a = tf( -1.3390e+09, [1 -0.8718 0.8316 -1.2511 -26.4527 -3.2626 28.5299] );               % Updated Tuned controller
+g13_a = tf( -1.3390e+09, [1 -0.8718 0.8316 -1.2511 -26.4527 -3.2626 28.5299] );               % Updated Tuned controller
 
 
-g14_a = minreal( G_alpha(1, 4), TOL );      % Extract controller
+% g14_a = minreal( G_alpha(1, 4), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g14_a );  % Loop-shape
 % qpause;
-% g14_a = tf( [6.3484e+08 4.4344e+09], [1 8.8806 16.0736 -12.4115 -60.8382 -258.7741] );        % Updated Tuned controller
+g14_a = tf( [6.3484e+08 4.4344e+09], [1 8.8806 16.0736 -12.4115 -60.8382 -258.7741] );        % Updated Tuned controller
 
 
 % -----------
 % --- 2ND ROW
 % -----------
-g21_a = minreal( G_alpha(2, 1), TOL );      % Extract controller
+% g21_a = minreal( G_alpha(2, 1), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g21_a );  % Loop-shape
 % qpause;
-% g21_a = tf( [0 9.6487e+10], [1 -635.1622] );                                                  % Updated Tuned Controller
+g21_a = tf( [0 9.6487e+10], [1 -635.1622] );                                                  % Updated Tuned Controller
 
 
-g22_a = minreal( G_alpha(2, 2), TOL );      % Extract controller
+% g22_a = minreal( G_alpha(2, 2), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g22_a );  % Loop-shape
 % qpause;
-% g22_a = tf( 3173.5, 1 );                                                                      % Updated Tuned Controller
+g22_a = tf( 3173.5, 1 );                                                                      % Updated Tuned Controller
 
 
-g23_a = minreal( G_alpha(2, 3), TOL );      % Extract controller
+% g23_a = minreal( G_alpha(2, 3), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g23_a );  % Loop-shape
 % qpause;
-% g23_a = tf( [8.4097e+04 1.8164e+07], [1 -0.3010 -4.2822 1.0981 -36.8524 -78.2098 357.5101] ); % Updated Tuned controller
+g23_a = tf( [8.4097e+04 1.8164e+07], [1 -0.3010 -4.2822 1.0981 -36.8524 -78.2098 357.5101] ); % Updated Tuned controller
 
 
-g24_a = minreal( G_alpha(2, 4), TOL );      % Extract controller
+% g24_a = minreal( G_alpha(2, 4), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g24_a );  % Loop-shape
 % qpause;
-% g24_a = tf( [0 2.9843e+05 1.0446e+07 4.7003e+04], [1 -57.0933 1.4142e+03 -8.4829] );          % Updated Tuned controller
+g24_a = tf( [0 2.9843e+05 1.0446e+07 4.7003e+04], [1 -57.0933 1.4142e+03 -8.4829] );          % Updated Tuned controller
 
 
 % -----------
 % --- 3RD ROW
 % -----------
-g31_a = minreal( G_alpha(3, 1), TOL );      % Extract controller
+% g31_a = minreal( G_alpha(3, 1), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g31_a );  % Loop-shape
 % qpause;
-% g31_a = tf( 4.5825e+11, [1 11.4469 63.0862 32.9897 -448.4413] );                              % Updated Tuned controller
+g31_a = tf( 4.5825e+11, [1 11.4469 63.0862 32.9897 -448.4413] );                              % Updated Tuned controller
 
 
-g32_a = minreal( G_alpha(3, 2), TOL );      % Extract controller
+% g32_a = minreal( G_alpha(3, 2), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g32_a );  % Loop-shape
 % qpause;
-% g32_a = tf( 9.3521e+05, [1 -1.0003e+03 341.9647 -353.8458 941.4834] );                        % Updated Tuned controller
+g32_a = tf( 9.3521e+05, [1 -1.0003e+03 341.9647 -353.8458 941.4834] );                        % Updated Tuned controller
 
 
-g33_a = minreal( G_alpha(3, 3), TOL );      % Extract controller
+% g33_a = minreal( G_alpha(3, 3), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g33_a );  % Loop-shape
 % qpause;
-% g33_a = tf( [-6.8269e+06 -4.6039e+07], [1 -1.9901] );                                         % Updated Tuned controller
+g33_a = tf( [-6.8269e+06 -4.6039e+07], [1 -1.9901] );                                         % Updated Tuned controller
 
 
-g34_a = minreal( G_alpha(3, 4), TOL );      % Extract controller
+% g34_a = minreal( G_alpha(3, 4), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g34_a );  % Loop-shape
 % qpause;
-% g34_a = tf( 6.7402e+08, [1 7.5630 22.3331] );                                                 % Updated Tuned controller
+g34_a = tf( 6.7402e+08, [1 7.5630 22.3331] );                                                 % Updated Tuned controller
 
 
 % -----------
 % --- 4TH ROW
 % -----------
-g41_a = minreal( G_alpha(4, 1), TOL );      % Extract controller
+% g41_a = minreal( G_alpha(4, 1), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g41_a );  % Loop-shape
 % qpause;
-% g41_a = tf( 39.85, [1 3.953] );               % Updated Tuned controller
+g41_a = tf( [1.6093e+06 2.8803e+07 1.2630e+08], [1 -6.4478 -0.1201 -4.5148 -31.4865] );       % Updated Tuned controller
 
 
-g42_a = minreal( G_alpha(4, 2), TOL );      % Extract controller
+% g42_a = minreal( G_alpha(4, 2), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g42_a );  % Loop-shape
 % qpause;
-% g42_a = tf( 100.8, [1 10] );                  % Updated Tuned controller
+g42_a = tf( [1.5133e+11 1.0548e+12 -1.1432e+10 3.0953e+07], ...
+            [1 9.9473 -242.8559 11.3095 -2.9213 -15.0348 -927.4362 -6.8449e+03 60.1182 7.6551e-05] );     % Updated Tuned controller***CHECK
 
 
-g43_a = minreal( G_alpha(4, 3), TOL );      % Extract controller
+% g43_a = minreal( G_alpha(4, 3), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g43_a );  % Loop-shape
 % qpause;
-% g43_a = tf( 100.8, [1 10] );                  % Updated Tuned controller
+g43_a = tf( [1.4990e+06 1.4065e+05], [1 1.6508 2.8742 -0.2737] );                             % Updated Tuned controller
 
 
-g44_a = minreal( G_alpha(4, 4), TOL );      % Extract controller
+% g44_a = minreal( G_alpha(4, 4), TOL );      % Extract controller
 % controlSystemDesigner( 'bode', 1, g44_a );  % Loop-shape
 % qpause;
-% g44_a = tf( [3.6414e+03 9.4036e+06], [1 -1.5041 314.2805] );      % Updated Tuned controller***CHECK
+g44_a = tf( [-514.6040 2.4748e+04 -2.2744e+06 4.7625e+07 -4.6867e+05 -470.1923], ...
+            [1 -8.8075 -7.2968 1.9619 6.5480 -2.8514 4.8294 -0.0360 7.2756e-05] );            % Updated Tuned controller
 
 G_alpha_old = G_alpha;
 G_alpha = [ g11_a, g12_a, g13_a, g14_a ;
