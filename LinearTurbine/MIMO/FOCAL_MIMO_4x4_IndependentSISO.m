@@ -74,8 +74,8 @@ if( isunix )
 end
 
 % --- Directory where QFT generated controllers are stored
-dirG = fullfile( ctrlSrc, 'R3', 'G' );
-dirF = fullfile( ctrlSrc, 'R3', 'F' );
+dirG = fullfile( ctrlSrc, 'R3', 'G', 'Method_1' );
+dirF = fullfile( ctrlSrc, 'R3', 'F', 'Method_1' );
 
 
 %% Read A, B, C, D matrices from linearized model
@@ -241,13 +241,12 @@ P = numerical_cleanup( P, 1e-08, 0.01 );
 fprintf( ACK );
 
 % --- Plot bode diagram
-w = logspace( -7, -2, 1024 );
-[p0, theta0] = bode( P0, w );
-
+ww = logspace( log10(5e-2), log10(7.5e0), 2048 );
+[p0, theta0] = bode( P0, ww );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
-    bode( P0, '-', P0, '.r', w(1:32:end) ); grid on;
-    make_nice_plot();
+    bode( P0, '-', P0, '.r', ww(1:32:end) ); grid on;
+    make_nice_plot( PRNT, './figs', 'bode_plot' );
 end
 
 %% Step 3: QFT Template
@@ -257,30 +256,25 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w =  [ 1e-7 5e-7, 1e-6 5e-6, 1e-5 2e-5 5e-5, 1e-4 2e-4 5e-4, 1e-3 2e-4 5e-3 ];
+w = [ 5e-2 7.5e-2 ...
+      1e-1 2.5e-1 5e-1 7.5e-1 ...
+      1e0  2.5e0  5e0  7.5e0 ];
 
 if( PLOT )
     % --- Plot QFT templates
-    for ROW = 1:width(P)
-        for COL = 1:width(P)
+    for ROW = 1:nrowsP
+        for COL = 1:ncolsP
             plottmpl( w, P(ROW, COL, :, :), nompt );
     
             % --- Change legend position
             hLegend = findobj( gcf, 'Type', 'Legend' ); % Get legend property
             set( hLegend, 'location', 'southeast' );    % Access and change location
-            
-            % --- Change plot limits
-            if( ROW == 2 && COL == 1)
-                xmin = -270; xmax = 45; dx = 45;
-                xlim( [xmin xmax] );
-                xticks( xmin:dx:xmax )
-            end
 
             txt = ['Plant Templates for p' num2str(ROW) num2str(COL) '(s)' ];
             title( txt )
             
             % --- Beautify plot
-            make_nice_plot();
+            make_nice_plot( PRNT, './figs', txt );
         end
     end
 end
@@ -301,12 +295,37 @@ fprintf( ACK );
 %
 
 % --- RGA for s=jw=0
-P0_0 = freqresp( P0, 0 );
-Lambda_0 = P0_0 .* inv(P0_0).';
+P0_0    = dcgain( P0 );
+[U,S,V] = svd( P0_0 );
+P0_0inv = V/S*U.';
+Lambda_0 = P0_0 .* P0_0inv.';
+
+% === NEED REVISION
+% === FOR NOW, INSPECT BY HAND!
+% --- Store maximum and minimum gains allowable for the MIMO system
+% maxGain = -inf; dirMaxGain = 0;
+% minGain = +inf; dirMinGain = 0;
+% for ii = 1:length(S)
+%     tempMax = max( S(:,ii), [], "all" );
+%     tempMin = min( S(:,ii), [], "all" );
+% 
+%     if( tempMax > maxGain )
+%         maxGain = tempMax;
+%         dirMaxGain = ii;
+%     end
+% 
+%     if( tempMin < minGain )
+%         minGain = tempMin;
+%         dirMinGain = ii;
+%     end
+% end
 
 % --- RGA for s=jw=inf
 P0_inf = freqresp( P0, 1e16 );
-Lambda_inf = P0_inf .* inv(P0_inf).';
+P0_inf = abs( P0_inf );                 % Make sure we get sensical numbers
+[U,S,V] = svd( P0_inf );
+P0_infinv = V/S*U.';
+Lambda_inf = P0_inf .* P0_infinv.';
 
 % --- Determine pairing
 % Recall, the column element closest to 1 corresponds to the row pairing
@@ -325,6 +344,15 @@ fprintf( "Control - Output pairing:\n" );   % [INFO] ...
 VAL = 1;                                    % Value we want to be close to
 for COL = 1:width(Lambda_0)
     Lambda_COL = Lambda_0(:, COL);          % Extract column
+    
+    % --- Cast numbers less than zero (~=1e-8 being close enough) as -inf
+    for ii = 1:length( Lambda_COL )
+        if( Lambda_COL(ii) < 1e-8 )
+            Lambda_COL(ii) = -inf;
+        end
+    end
+    
+    % --- Carry on finding closest number to one that is non-negative
     % Get the index of the element closest to VAL (=1)
     [minValue, NDX] = min( abs(Lambda_COL-VAL) );
     closestValue = Lambda_COL( NDX );
@@ -350,10 +378,15 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 5e-5, ...
-            1e-4 2e-4  5e-4, 1e-3  2e-4 5e-3 ];
-% Restriction (for p_ii, i=1,2)
-W_s         = 1.66;
+omega_1 = [ 5e-2 7.5e-2 ...
+            1e-1 2.5e-1 5e-1 7.5e-1 ...
+            1e0  2.5e0  5e0  7.5e0 ];
+
+% Restriction (for p_ii, i=1,2,3,4)
+% W_s         = 1.66;
+W_s         = 1.46;
+% W_s         = 1.08;
+% W_s         = 1.01;
 del_1       = W_s;
 PM          = 180 - 2*(180/pi)*acos(0.5/W_s);       % In deg
 GM          = 20*log10( 1+1/W_s );                   % In dB
@@ -369,51 +402,93 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
-% --- Type 3
-%   Sensitivity or disturbances at plant output specification
+%%
+% -----------------------------------------------------------------------
+% -- Type 3: Sensitivity or output disturbance rejection specification --
+% -----------------------------------------------------------------------
+%
+% Typically use the following form:
+%   
+%   --> del_3(s) = s/(s + a_d)
+%
+%   By selecting just one parameter, the pole a_d, we can achieve different
+% levels of disturbance rejection. The higher the parameter a_d, the more
+% significant the attenuation of the effect of the disturbance.
+%
+%   Typical choice for a_d is s.t. ( a_d >= max(omega_3) )
 %
 
 % Frequencies of interest
-omega_3 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 ];
+omega_3 = [ 5e-2 7.5e-2 1e-1 ];
 
 % Restriction
-a_d     = 2e-5;
-num     = [ 1/a_d , 0 ];
-den     = [ 1/a_d , 1 ];
+a_d     = 1e-1;
+num     = [ 1/a_d   , 0 ];
+den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
 
+% --- Plot bounds
 if( PLOT )
-    % --- PLOT bode response of del_3(s)
     figure( CNTR ); CNTR = CNTR + 1;
-
     w_del_3 = logspace( log10(w(1)), log10(w(end)));
     [mag, ~] = bode( del_3, w_del_3 );
     mag_dB = db( squeeze(mag) );
 
     semilogx( w_del_3, mag_dB ); grid on;
+    
+    txt = ["Sensitivity Specification"];
+    title( txt );
+    make_nice_plot( PRNT, './figs', txt );
 end
 
-% --- Type 6
-%   Reference tracking specification
+
+%%
+% --------------------------------------------------
+% ---- Type 6: Reference tracking specification ----
+% --------------------------------------------------
+%
+% A practical selection is:
+%
+%                         (1-eps_L)
+%   --> del_6_lo(s) = -----------------
+%                       (s/a_L + 1)^2
+%       With
+%               0 <= eps_L
+%
+%
+%                           (s/a_U + 1)*(1+eps_U)
+%   --> del_6_hi(s) = ----------------------------------
+%                       ((s/wn)^2 + (2*zeta*s/wn) + 1)
+%       With
+%               0 <= eps_U; zeta = 0.8; wn = 1.25*a_U/zeta
+%
+%   Normally, we do not ask the system to follow a high-frequency
+% reference. In this way, we reduce high-frequency activity of the
+% actuators and then avoid potential mechanical fatigue problems.
 %
 
 % Frequencies of interest
-omega_6 = [ 1e-7 5e-7, 1e-6  5e-6, 1e-5 2e-5 5e-5, 1e-4 ];
+omega_6 = [ 5e-2 7.5e-2 1e-1 ];
+
 
 % Restriction
+% -----------
 % Upper bound
-a_U = 2e-5; zeta = 0.8; wn = 1.25*a_U/zeta;
-num = [ 1/a_U , 1 ];
-den = [ 1/wn^2, 2*zeta/wn, 1 ];
+% -----------
+a_U = 2.5e-2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+num = [ conv([1/a_U 1], [0 1+eps_U]) ];
+den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
+% -----------
 % Lower bound
-syms s;
-a_L = 2e-5;
-num = 1;
-den = sym2poly( (s/a_L + 1)^2 );
+% -----------
+a_L = 5.0e-2; eps_L = 0.025;
+num = 1-eps_L;
+den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
-clear s;
+% -----------
 % Tracking weight
+% -----------
 del_6 = [ del_6_U  ;
           del_6_L ];
 
@@ -421,6 +496,9 @@ if( PLOT )
     % --- PLOT step response of del_6_U(s) and del_6_L(s)
     figure( CNTR ); CNTR = CNTR + 1;
     stepplot( del_6_U, del_6_L ); grid on;
+    txt = ["Reference Tracking Specification"];
+    title( txt );
+    make_nice_plot( PRNT, './figs', txt);
 end
 
 % [INFO] ...
@@ -464,7 +542,7 @@ for i=1:width(P)
         txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
         % xlim( [-360 0] ); ylim( [-10 30] );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -495,7 +573,7 @@ for i=1:width(P)
         plotbnds( bdb2(:, :, i) );
         txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 % [INFO] ...
@@ -524,7 +602,7 @@ for i=1:width(P)
         plotbnds( bdb7(:, :, i) );
         txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
-        make_nice_plot();
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -544,6 +622,7 @@ for i=1:width(P)
         plotbnds( bdb( :, :, i ) );
         txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -558,6 +637,7 @@ for i=1:width(P)
         plotbnds( ubdb( :, :, i ) );
         txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
+        make_nice_plot( PRNT, './figs', txt );
     end
 end
 
@@ -568,23 +648,31 @@ fprintf( ACK );
 
 % [INFO] ...
 fprintf( 'Step 9:' );
-fprintf( '\tSynthesize G(s)...' );
-
-% --- Directory where QFT generated controllers are stored
-src = './controllerDesigns/';
+fprintf( '\tSynthesize G(s)...\n' );
 
 for i=1:width(P)
     % --- Controller, G(s)
-    G_file  = [ src 'g' num2str(i) num2str(i) '_i.shp' ];
+    G_name  = ['g' num2str(i) num2str(i) '_i.shp'];
+    G_file  = fullfile( dirG, G_name );
     if( isfile(G_file) )
+        fprintf( "\tController %s found. Loading from file.\n", G_name );
         g_ii( :, :, i ) = getqft( G_file );
     else
         if( i == 1 )
-            num = -0.0006 .* [ 1/3e-5, 1];      % Numerator
-            den = [ 1, 0 ];                     % Denominator
+            num = [0 , -0.1511 , -72.7146, -223.3943];  % Numerator
+            den = [1 ,  12.0745,  27.7382,  15.95670];  % Denominator
         elseif( i == 2 )
-            num = -1.5 .* [ 1/4.5e-5, 1];       % Numerator
-            den = [ 1, 0 ];                     % Denominator
+            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
+            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+        elseif( i == 3 )
+            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
+            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+        elseif( i == 4 )
+            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
+            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+        else
+            num = 1;
+            den = 1;
         end
         
         % Construct controller TF
@@ -593,14 +681,34 @@ for i=1:width(P)
 end
 
 % Define a frequency array for loop shaping
-wl = logspace( log10(w(1)), log10(w(end)), 2048 );
+wl = logspace( log10(w(1)/100), log10(w(end)*100), 2048 );
 
 % --- Loop over plants and design the controller
 for i=1:width(P)
     L0(:, :, i) = P( i, i, nompt );
     L0(:, :, i).ioDelay = 0; % no delay
+
+    % --- Print to screen to get more info while designing
+    %
+    % Plant, P_ii
+    fprintf( "\tPlant, P_%i%i:\n", i, i );
+    fprintf( "=============================\n" );
+    nyquistStability( P( i, i, nompt ) );
+    zpk( P( i, i, nompt ) )
+    % Controller, G_ii
+    fprintf( "\tController, G_%i%i:\n", i, i );
+    fprintf( "=============================\n" );
+    nyquistStability( g_ii( :, :, i ) );
+    zpk( g_ii( :, :, i ) )
+    % Open-loop, L0
+    fprintf( "\tOpen-loop, L0=G_%i%i*P_%i%i:\n", i, i, i, i );
+    fprintf( "=============================\n" );
+    nyquistStability( g_ii( :, :, i ).*P( i, i, nompt ) );
+    zpk( g_ii( :, :, i ).*P( i, i, nompt ) )
+
+    % --- Loop shaping
     lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
-    qpause;
+%     qpause;
 end
 
 % [INFO] ...
