@@ -36,7 +36,7 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-% PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
+PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
@@ -160,7 +160,7 @@ for variation = 1:n_Plants                          % Loop over variations
     D_g = D_full(:, :, variation);
 
     sys_g = ss( A_g, B_g, C_g, D_g ); sys_g_original = sys_g;
-    sys_g = prescale( sys_g );
+    [sys_g, prescale_info] = prescale( sys_g );
     TF_g = tf( sys_g );
 
     % --- Here we create the plant TF
@@ -210,7 +210,6 @@ end
 fprintf( ACK );
 
 % Cleanup
-clearvars A* B* C* D* var* *_NDX -except A B C D ACK CNTR
 clearvars min_* max_* grid_*
 
 %% Step 2: The Nominal Plant
@@ -224,10 +223,17 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-P0 = TF;                        % Nominal Transfer Function
+% P0 = TF;                        % Nominal Transfer Function
+% Get average
+A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
+C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
+P0 = prescale( ss(A0, B0, C0, D0) );
+P0 = tf( P0 );              % Nominal Transfer Function
+P(:, :, end+1) = P0;
+nompt = length(P);
 
 % --- Define nominal plant case (recall, P(:,:,1) corresponds to P0)
-nompt = 1;
+% nompt = 1;
 
 % --- Get total plants size
 % [x-dim, y-dim, z-dim] = [nrowsP, ncolsP, nvarsP]
@@ -236,6 +242,7 @@ nompt = 1;
 % --- Cleanup plants transfer function by removing values below 1e-08 and
 % minreal of 0.01
 P = numerical_cleanup( P, 1e-08, 0.01 );
+% P = numerical_cleanup( P, 1e-08, 0.01 );
 
 % [INFO] ...
 fprintf( ACK );
@@ -248,6 +255,9 @@ if( PLOT )
     bode( P0, '-', P0, '.r', ww(1:32:end) ); grid on;
     make_nice_plot( PRNT, './figs', 'bode_plot' );
 end
+
+% Cleanup
+clearvars A* B* C* D* var* *_NDX -except A B C D ACK CNTR
 
 %% Step 3: QFT Template
 
@@ -468,21 +478,21 @@ end
 %
 
 % Frequencies of interest
-omega_6 = [ 5e-2 7.5e-2 1e-1 ];
+omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
 
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 2.5e-2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 1.0e-1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 5.0e-2; eps_L = 0.025;
+a_L = 2.5e-1; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
@@ -590,6 +600,7 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
+clear bdb7;
 for i=1:width(P)
     p_ii = P( i, i, :, : );
     bdb7(:, :, i) = sisobnds( spec, omega_6, del_6, p_ii, [], nompt );
@@ -662,14 +673,14 @@ for i=1:width(P)
             num = [0 , -0.1511 , -72.7146, -223.3943];  % Numerator
             den = [1 ,  12.0745,  27.7382,  15.95670];  % Denominator
         elseif( i == 2 )
-            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
-            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+            num = [0, 5.1400e-11, -3.9860e-10];         % Numerator
+            den = [1, 0.2790    ,  3.9860e-04];         % Denominator
         elseif( i == 3 )
-            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
-            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+            num = [0, 5.1400e-11, -3.9860e-10];         % Numerator
+            den = [1, 0.2790    ,  3.9860e-04];         % Denominator
         elseif( i == 4 )
-            num = [0, 5.1400e-11 -3.9860e-10];          % Numerator
-            den = [1, 0.2790    , 3.9860e-04];          % Denominator
+            num = [0, 5.1400e-11, -3.9860e-10];         % Numerator
+            den = [1, 0.2790    ,  3.9860e-04];         % Denominator
         else
             num = 1;
             den = 1;
@@ -719,17 +730,19 @@ fprintf( ACK );
 
 % [INFO] ...
 fprintf( 'Step 10:' );
-fprintf( '\tSynthesize F(s)...' );
+fprintf( '\tSynthesize F(s)...\n' );
 
 for i=1:width(P)
     % --- Pre-filter, F(s)
-    F_file  = [ src 'f' num2str(i) num2str(i) '_i.fsh' ];
+    F_name  = ['f' num2str(i) num2str(i) '_i.fsh'];
+    F_file  = fullfile( dirF, F_name );
     if( isfile(F_file) )
+        fprintf( "\tPrefilter %s found. Loading from file.\n", F_name );
         f_ii( :, :, i ) = getqft( F_file );
     else
         if( i == 1 )
             num = 1;                            % Numerator
-            den = [ 1/3.2e-5, 1 ];              % Denominator
+            den = [ 1, 0.05 ];              % Denominator
         elseif( i == 2 )
             num = 1;                            % Numerator
             den = [ 1/3.2e-5, 1 ];              % Denominator
@@ -751,7 +764,7 @@ for i=1:width(P)
 
     % Loopshape
     pfshape( 7, WW, del_6, PP, [], GG, [], FF );
-    qpause;
+%     qpause;
 end
 
 % [INFO] ...
@@ -853,3 +866,22 @@ fprintf( "\n-> G(s)\n" ); nyquistStability( tf(G), false )
 fprintf( "\n-> P(s)\n" ); nyquistStability( P0, false )
 fprintf( "\n-> L(s)\n" ); nyquistStability( T_OL, false )
 %}
+
+% sys_notPrescaled = ss( A, B, C, D );
+% foucs_prescale = {1e-2, 10};
+% [sys_prescaled, prescale_info] = prescale( sys_notPrescaled );
+% 
+% arr1 = [1, 1, 1, 1;
+%         1, 1, 1, 1;
+%         1, 1, 1, 1 ];
+% arr2 = [2, 4, 1, 1;
+%         2, 4, 1, 1;
+%         2, 4, 1, 1 ];
+% arr3 = [3, 5, 1, 1;
+%         3, 5, 1, 1;
+%         3, 5, 1, 1 ];
+% arr_net(:, :, 1) = arr1;
+% arr_net(:, :, 2) = arr2;
+% arr_net(:, :, 3) = arr3;
+% 
+% arr_mean = mean( arr_net, 3 )
