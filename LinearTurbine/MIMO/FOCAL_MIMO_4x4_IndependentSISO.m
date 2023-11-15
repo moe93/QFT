@@ -80,7 +80,8 @@ dirF = fullfile( ctrlSrc, 'R3', 'F', 'Method_1' );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-name_mdl    = 'azimuth_variation_R3.mat';
+name_mdl    = 'azimuth_variation_R3_12plants.mat';
+% name_mdl    = 'azimuth_variation_R3_24plants.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -223,17 +224,17 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-% P0 = TF;                        % Nominal Transfer Function
-% Get average
-A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
-C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
-P0 = prescale( ss(A0, B0, C0, D0) );
-P0 = tf( P0 );              % Nominal Transfer Function
-P(:, :, end+1) = P0;
-nompt = length(P);
+P0 = TF;                        % Nominal Transfer Function
+% % Get average
+% A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
+% C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
+% P0 = prescale( ss(A0, B0, C0, D0) );
+% P0 = tf( P0 );              % Nominal Transfer Function
+% P(:, :, end+1) = P0;
+% nompt = length(P);
 
 % --- Define nominal plant case (recall, P(:,:,1) corresponds to P0)
-% nompt = 1;
+nompt = 1;
 
 % --- Get total plants size
 % [x-dim, y-dim, z-dim] = [nrowsP, ncolsP, nvarsP]
@@ -692,7 +693,7 @@ for i=1:width(P)
 end
 
 % Define a frequency array for loop shaping
-wl = logspace( log10(w(1)/100), log10(w(end)*100), 2048 );
+wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 
 % --- Loop over plants and design the controller
 for i=1:width(P)
@@ -706,16 +707,16 @@ for i=1:width(P)
     fprintf( "=============================\n" );
     nyquistStability( P( i, i, nompt ) );
     zpk( P( i, i, nompt ) )
-    % Controller, G_ii
-    fprintf( "\tController, G_%i%i:\n", i, i );
-    fprintf( "=============================\n" );
-    nyquistStability( g_ii( :, :, i ) );
-    zpk( g_ii( :, :, i ) )
-    % Open-loop, L0
-    fprintf( "\tOpen-loop, L0=G_%i%i*P_%i%i:\n", i, i, i, i );
-    fprintf( "=============================\n" );
-    nyquistStability( g_ii( :, :, i ).*P( i, i, nompt ) );
-    zpk( g_ii( :, :, i ).*P( i, i, nompt ) )
+%     % Controller, G_ii
+%     fprintf( "\tController, G_%i%i:\n", i, i );
+%     fprintf( "=============================\n" );
+%     nyquistStability( g_ii( :, :, i ) );
+%     zpk( g_ii( :, :, i ) )
+%     % Open-loop, L0
+%     fprintf( "\tOpen-loop, L0=G_%i%i*P_%i%i:\n", i, i, i, i );
+%     fprintf( "=============================\n" );
+%     nyquistStability( g_ii( :, :, i ).*P( i, i, nompt ) );
+%     zpk( g_ii( :, :, i ).*P( i, i, nompt ) )
 
     % --- Loop shaping
     lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
