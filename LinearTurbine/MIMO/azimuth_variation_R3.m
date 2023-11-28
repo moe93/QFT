@@ -36,7 +36,7 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-% PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
+PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
@@ -80,8 +80,8 @@ dirF = fullfile( ctrlSrc, 'R3', 'F' );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-% name_mdl    = 'azimuth_variation_R3_12plants.mat';
-name_mdl    = 'azimuth_variation_R3_24plants.mat';
+name_mdl    = 'azimuth_variation_R3_12plants.mat';
+% name_mdl    = 'azimuth_variation_R3_24plants.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 
 % --- Get number of states
@@ -263,15 +263,19 @@ nompt = 1;
 % --- Cleanup plants transfer function by removing values below 1e-08 and
 % minreal of 0.01
 P = numerical_cleanup( P, 1e-08, 0.01 );
-% tic;
-% for ROW = 1:nrowsP
-%     for COL = 1:ncolsP
-%         for VAR = 1:nvarsP
-%             P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), 3 );
-%         end
-%     end
-% end
-% toc;
+tic;
+for ROW = 1:nrowsP
+    for COL = 1:ncolsP
+        for VAR = 1:nvarsP
+%             P(ROW, COL, VAR) = reduceOrder( P(ROW, COL, VAR), 0.01, 10, 1, true );
+%             P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), ...
+%                                         ceil(order(P(ROW, COL, VAR))/2), 1, false );
+            P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), ...
+                                                    3, 1, false );
+        end
+    end
+end
+toc;
 
 % --- Define nominal plant case (nvarsP because we attached nominal plant
 % at the end of the plants' matrices
@@ -870,6 +874,9 @@ TOL     = 0.1;
 Px      = minreal( P * G_alpha, TOL );              % Extended matrix
 Px      = numerical_cleanup( Px, 1e-8, TOL );       %   CLEANUP
 Px_old  = Px;
+% freq_range = logspace( log10(w(1)), log10(w(end)), 10 );
+% nulledP = abs( freqresp(Px(:,:,3), freq_range, 'rad/s') );
+nulledP = abs( freqresp(Px(:,:,1), 0.5, 'rad/s') );
 % [Px_A, Px_B, Px_C, Px_D] = ss( Px ); Px = prescale( Px_A, Px_B, Px_C, Px_D );
 for ii = 1:height( Px )
     for jj = 1:width( Px )
@@ -982,7 +989,7 @@ for i=1:1
 
         % --- Plot bounds
         plotbnds( bdb1(:, :, i) );
-        txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Robust Stability Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         % xlim( [-360 0] ); ylim( [-10 30] );
         make_nice_plot( PRNT, './figs', txt );
@@ -1014,7 +1021,7 @@ for i=1:1
 
         % --- Plot bounds
         plotbnds( bdb2(:, :, i) );
-        txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Sensitivity Reduction Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1043,7 +1050,7 @@ for i=1:1
 
         % --- Plot bounds
         plotbnds( bdb7(:, :, i) );
-        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Robust Tracking  Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1063,7 +1070,7 @@ for i=1:1
     bdb( :, :, i ) = grpbnds( bdb1(:,:,i), bdb2(:,:,i), bdb7(:,:,i) );
     if( PLOT )
         plotbnds( bdb( :, :, i ) );
-        txt = ['All Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['All Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1078,7 +1085,7 @@ for i=1:1
     ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
     if( PLOT )
         plotbnds( ubdb( :, :, i ) );
-        txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Intersection of Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1173,7 +1180,7 @@ for i=2:2
 
         % --- Plot bounds
         plotbnds( bdb1(:, :, i) );
-        txt = ['Robust Stability Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Robust Stability Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         % xlim( [-360 0] ); ylim( [-10 30] );
         make_nice_plot( PRNT, './figs', txt );
@@ -1205,7 +1212,7 @@ for i=2:2
 
         % --- Plot bounds
         plotbnds( bdb2(:, :, i) );
-        txt = ['Sensitivity Reduction Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Sensitivity Reduction Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1234,7 +1241,7 @@ for i=2:2
 
         % --- Plot bounds
         plotbnds( bdb7(:, :, i) );
-        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Robust Tracking  Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1269,7 +1276,7 @@ for i=2:2
     ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
     if( PLOT )
         plotbnds( ubdb( :, :, i ) );
-        txt = ['Intersection of Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Intersection of Bounds for qx' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -1322,3 +1329,31 @@ for COL = 1:width(aaa)
     fprintf( "\t> ( u%i, y%i )\n", COL, NDX );
 end
 
+%% Plot decoupled(?) matrix of plants
+%
+
+ww = logspace( log10(5e-2), log10(7.5e0), 2048 );
+[~, ~, zP] = size(P);
+for i=1:zP
+    % --- Plot bode diagram
+    figure( CNTR ); CNTR = CNTR + 1;
+    bode( Px(:,:,i), '-', Px(:,:,i), '.r', ww(1:64:end) ); grid on;
+    txt = ['bode_plot_Px(:,:,' num2str(i) ')'];
+    make_nice_plot( 1, './figs', txt );
+end
+
+
+%% Plot overlay decoupled(?) matrix of plants over original
+%
+
+ww = logspace( log10(5e-2), log10(7.5e0), 2048 );
+[~, ~, zP] = size(P);
+for i=1:zP
+    % --- Plot bode diagram
+    figure( CNTR ); CNTR = CNTR + 1;
+    bode( P(:,:,i), '-', P(:,:,i), '.r', ww(1:64:end) ); grid on; hold on;
+    bode( Px(:,:,i), '-', Px(:,:,i), '.k', ww(1:64:end) );
+    txt = ['Bode Plot P' num2str(i) ' vs Px' num2str(i)];
+    title( txt );
+    make_nice_plot( 1, './figs', txt );
+end
