@@ -36,11 +36,11 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
+% PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
-PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
+% PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 % --- [INFO] Strings
 ACK = 'COMPLETED\n\n';
@@ -244,13 +244,13 @@ fprintf( '\tComputing nominal plant...' );
 %   Any one of the models above can be used as the nominal plant.
 %   We just happened to chose this one.
 %
-% P0 = TF;                     % Nominal Transfer Function
+P0 = TF;                     % Nominal Transfer Function
 % Get average
-A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
-C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
-P0 = prescale( ss(A0, B0, C0, D0) );
-P0 = tf( P0 );              % Nominal Transfer Function
-P(:, :, end+1) = P0;
+% A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
+% C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
+% P0 = prescale( ss(A0, B0, C0, D0) );
+% P0 = tf( P0 );              % Nominal Transfer Function
+% P(:, :, end+1) = P0;
 nompt = 1;
 
 % --- Append to the end of the gridded plants
@@ -263,19 +263,19 @@ nompt = 1;
 % --- Cleanup plants transfer function by removing values below 1e-08 and
 % minreal of 0.01
 P = numerical_cleanup( P, 1e-08, 0.01 );
-tic;
-for ROW = 1:nrowsP
-    for COL = 1:ncolsP
-        for VAR = 1:nvarsP
-%             P(ROW, COL, VAR) = reduceOrder( P(ROW, COL, VAR), 0.01, 10, 1, true );
+% tic;
+% for ROW = 1:nrowsP
+%     for COL = 1:ncolsP
+%         for VAR = 1:nvarsP
+% %             P(ROW, COL, VAR) = reduceOrder( P(ROW, COL, VAR), 0.01, 10, 1, true );
+% %             P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), ...
+% %                                         ceil(order(P(ROW, COL, VAR))/2), 1, false );
 %             P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), ...
-%                                         ceil(order(P(ROW, COL, VAR))/2), 1, false );
-            P(ROW, COL, VAR) = reduceOrder_balred( P(ROW, COL, VAR), ...
-                                                    3, 1, false );
-        end
-    end
-end
-toc;
+%                                                     3, 1, false );
+%         end
+%     end
+% end
+% toc;
 
 % --- Define nominal plant case (nvarsP because we attached nominal plant
 % at the end of the plants' matrices
@@ -304,9 +304,12 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 5e-2 7.5e-2 ...
-      1e-1 2.5e-1 5e-1 7.5e-1 ...
-      1e0  2.5e0  5e0  7.5e0 ];
+% w = [ 5e-2 7.5e-2 ...
+%       1e-1 2.5e-1 5e-1 7.5e-1 ...
+%       1e0  2.5e0  5e0  7.5e0 ];
+w = [ 5e-2  ...
+      1e-1 5e-1 ...
+      1e0  5e0  ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -811,7 +814,7 @@ G_alpha = [ g11_a, g12_a, g13_a, g14_a ;
             g21_a, g22_a, g23_a, g24_a ;
             g31_a, g32_a, g33_a, g34_a ;
             g41_a, g42_a, g43_a, g44_a ];
-G_alpha = reduceOrder( G_alpha, 0.01, 10 );
+% G_alpha = reduceOrder( G_alpha, 0.01, 10 );
 % G_alpha = reduceOrder_balred( G_alpha );
 
 % --- Plot to visualize
@@ -873,33 +876,33 @@ fprintf( '\t> Computing G_beta(s)...' );
 TOL     = 0.1;
 Px      = minreal( P * G_alpha, TOL );              % Extended matrix
 Px      = numerical_cleanup( Px, 1e-8, TOL );       %   CLEANUP
-Px_old  = Px;
+% Px_old  = Px;
 % freq_range = logspace( log10(w(1)), log10(w(end)), 10 );
 % nulledP = abs( freqresp(Px(:,:,3), freq_range, 'rad/s') );
 nulledP = abs( freqresp(Px(:,:,1), 0.5, 'rad/s') );
 % [Px_A, Px_B, Px_C, Px_D] = ss( Px ); Px = prescale( Px_A, Px_B, Px_C, Px_D );
-for ii = 1:height( Px )
-    for jj = 1:width( Px )
-        for kk = 1:length( Px )
-            Px(ii, jj, kk)  = reduceOrder( Px(ii, jj, kk), 0.01, 10, 50, false );
-%             Px(ii, jj, kk)  = reduceOrder_balred( Px(ii, jj, kk), ...
-%                                                 ceil(order(Px(ii, jj, kk))/2)+2 );
-        end
-    end
-end
+% for ii = 1:height( Px )
+%     for jj = 1:width( Px )
+%         for kk = 1:length( Px )
+%             Px(ii, jj, kk)  = reduceOrder( Px(ii, jj, kk), 0.01, 10, 50, false );
+% %             Px(ii, jj, kk)  = reduceOrder_balred( Px(ii, jj, kk), ...
+% %                                                 ceil(order(Px(ii, jj, kk))/2)+2 );
+%         end
+%     end
+% end
 
 Pxinv   = minreal( inv(Px), TOL );                  % Invert extended matrix
 Pxinv   = numerical_cleanup( Pxinv, 1e-8, TOL );    %   CLEANUP
 Pxinv_old   = Pxinv;
-for ii = 1:height( Pxinv )
-    for jj = 1:width( Pxinv )
-        for kk = 1:length( Pxinv )
-            Pxinv(ii, jj, kk)  = reduceOrder( Pxinv(ii, jj, kk), 0.01, 10, 50, false );
-%             Pxinv(ii, jj, kk)  = reduceOrder_balred( Pxinv(ii, jj, kk), ...
-%                                                 ceil(order(Pxinv(ii, jj, kk))/2)+2 );
-        end
-    end
-end
+% for ii = 1:height( Pxinv )
+%     for jj = 1:width( Pxinv )
+%         for kk = 1:length( Pxinv )
+%             Pxinv(ii, jj, kk)  = reduceOrder( Pxinv(ii, jj, kk), 0.01, 10, 50, false );
+% %             Pxinv(ii, jj, kk)  = reduceOrder_balred( Pxinv(ii, jj, kk), ...
+% %                                                 ceil(order(Pxinv(ii, jj, kk))/2)+2 );
+%         end
+%     end
+% end
 
 % Pxsvd = tf( zeros(size(Px)) );
 % tic;
@@ -1339,7 +1342,7 @@ for i=1:zP
     figure( CNTR ); CNTR = CNTR + 1;
     bode( Px(:,:,i), '-', Px(:,:,i), '.r', ww(1:64:end) ); grid on;
     txt = ['bode_plot_Px(:,:,' num2str(i) ')'];
-    make_nice_plot( 1, './figs', txt );
+    make_nice_plot( 0, './figs', txt );
 end
 
 
@@ -1355,5 +1358,16 @@ for i=1:zP
     bode( Px(:,:,i), '-', Px(:,:,i), '.k', ww(1:64:end) );
     txt = ['Bode Plot P' num2str(i) ' vs Px' num2str(i)];
     title( txt );
-    make_nice_plot( 1, './figs', txt );
+    make_nice_plot( 0, './figs', txt );
 end
+
+%% Test inversion
+%
+
+PP = [5 ,24, 55;
+      234, 455, 656;
+      767, 878, 8539];
+
+PPinv = PP^(-1)
+
+ay = PP*PPinv*eye( size(PP) )
