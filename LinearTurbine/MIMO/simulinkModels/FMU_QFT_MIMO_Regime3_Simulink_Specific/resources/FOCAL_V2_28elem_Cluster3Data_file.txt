@@ -1,0 +1,44 @@
+// Blade elements cluster 3 data - FOCAL 28 elements
+
+// ==============================================================
+// "Element number"
+// ==============================================================
+n1 				= 13;			// Element number - 13					[    -    ]
+n2 				= 14;			// Element number - 14					[    -    ]
+n3 				= 15;			// Element number - 15					[    -    ]
+n4 				= 16;			// Element number - 16					[    -    ]
+n5 				= 17;			// Element number - 17					[    -    ]
+n6 				= 18;			// Element number - 18					[    -    ]
+
+// ==============================================================
+// "Local chord distribution"
+// ==============================================================
+c_blade_1 		= 0.09316*70	// Chord length	- 13					[    m    ]
+c_blade_2 		= 0.08729*70;	// Chord length	- 14					[    m    ]
+c_blade_3 		= 0.08211*70;	// Chord length	- 15					[    m    ]
+c_blade_4 		= 0.07540*70	// Chord length	- 16					[    m    ]
+c_blade_5 		= 0.06969*70;	// Chord length	- 17					[    m    ]
+c_blade_6 		= 0.06633*70;	// Chord length	- 18					[    m    ]
+
+// ==============================================================
+// "Local blade twist distribution"
+// ==============================================================
+angle_1 		=  3.00;		// Local blade twist - 13				[   deg   ]
+angle_2 		=  2.43;		// Local blade twist - 14				[   deg   ]
+angle_3 		=  1.93;		// Local blade twist - 15				[   deg   ]
+angle_4 		=  1.28;		// Local blade twist - 16				[   deg   ]
+angle_5 		=  0.72;		// Local blade twist - 17				[   deg   ]
+angle_6 		=  0.40;		// Local blade twist - 18				[   deg   ]
+
+// ==============================================================
+// "Flap Stiffness"
+// ==============================================================
+FlpStff_1 		= 1.038E+11;	// Flap flexural rigidity - 13			[  N.m^2  ]
+FlpStff_2 		= 8.811E+10;	// Flap flexural rigidity - 14			[  N.m^2  ]
+FlpStff_3 		= 7.544E+10;	// Flap flexural rigidity - 15			[  N.m^2  ]
+FlpStff_4 		= 5.651E+10;	// Flap flexural rigidity - 16			[  N.m^2  ]
+FlpStff_5 		= 4.938E+10;	// Flap flexural rigidity - 17			[  N.m^2  ]
+FlpStff_6 		= 4.340E+10;	// Flap flexural rigidity - 18			[  N.m^2  ]
+
+// *** NOTE:
+// 		Parameters with 1e-12 are NOT used within the model definition

@@ -1,0 +1,17 @@
+// Gearbox data - FOCAL
+
+hs_omega_0	= 0.9 ;		// High speed shaft initial angular velocity		[  rad/s  ]
+d_hs_mount	= 0.5e0 ;	// High speed mount rotational damping constant 	[N.m.s/rad]
+//d_hs_shaft	= 6.2e4;	// High speed shaft rotational damping constant 	[N.m.s/rad] // WORKING VALUE
+//c_hs_shaft	= 8.2e4;	// High speed mount rotational spring  constant 	[ N.m/rad ] // WORKING VALUE
+//I_hs_shaft	= 8.0e2;	// High speed shaft mass inertia 					[  kg.m^2 ] // WORKING VALUE
+d_hs_shaft	= 2.2e4;	// High speed shaft rotational damping constant 	[N.m.s/rad]
+c_hs_shaft	= 6.2e4;	// High speed mount rotational spring  constant 	[ N.m/rad ]
+I_hs_shaft	= 4.0e2;	// High speed shaft mass inertia 					[  kg.m^2 ]
+
+d_ls_mount	= 1;		// Low  speed mount rotational damping constant 	[N.m.s/rad]
+d_ls_shaft	= 1;		// Low  speed mount rotational damping constant 	[N.m.s/rad]
+c_ls_shaft	= 1;		// Low  speed mount rotational spring  constant 	[ N.m/rad ]
+I_ls_shaft	= 10;		// Low  speed shaft mass inertia 					[  kg.m^2 ]
+
+gb_ratio	= 1;//70.00;	// Ideal gear ratio (flange_a/flange_b)			[   ---   ]

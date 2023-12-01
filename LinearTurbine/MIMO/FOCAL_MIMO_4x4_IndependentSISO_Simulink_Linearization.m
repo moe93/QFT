@@ -251,7 +251,7 @@ P = numerical_cleanup( P, 1e-08, 0.01 );
 fprintf( ACK );
 
 % --- Plot bode diagram
-ww = logspace( log10(0.50), log10(0.80), 2048 );
+ww = logspace( log10(0.50), log10(10.0), 2048 );
 [p0, theta0] = bode( P0, ww );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
@@ -269,7 +269,7 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 0.5 0.6 0.7 0.8 ];
+w = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -310,26 +310,6 @@ P0_0    = dcgain( P0 );
 [U,S,V] = svd( P0_0 );
 P0_0inv = V/S*U.';
 Lambda_0 = P0_0 .* P0_0inv.';
-
-% === NEED REVISION
-% === FOR NOW, INSPECT BY HAND!
-% --- Store maximum and minimum gains allowable for the MIMO system
-% maxGain = -inf; dirMaxGain = 0;
-% minGain = +inf; dirMinGain = 0;
-% for ii = 1:length(S)
-%     tempMax = max( S(:,ii), [], "all" );
-%     tempMin = min( S(:,ii), [], "all" );
-% 
-%     if( tempMax > maxGain )
-%         maxGain = tempMax;
-%         dirMaxGain = ii;
-%     end
-% 
-%     if( tempMin < minGain )
-%         minGain = tempMin;
-%         dirMinGain = ii;
-%     end
-% end
 
 % --- RGA for s=jw=inf
 P0_inf = freqresp( P0, 1e16 );
@@ -389,14 +369,12 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 5e-2 7.5e-2 ...
-            1e-1 2.5e-1 5e-1 7.5e-1 ...
-            1e0  2.5e0  5e0  7.5e0 ];
+omega_1 = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
 
 % Restriction (for p_ii, i=1,2,3,4)
 % W_s         = 1.66;
-W_s         = 1.46;
-% W_s         = 1.08;
+% W_s         = 1.46;
+W_s         = 1.08;
 % W_s         = 1.01;
 del_1       = W_s;
 PM          = 180 - 2*(180/pi)*acos(0.5/W_s);       % In deg
@@ -430,10 +408,11 @@ fprintf( '\tDefining performance specifications...' );
 %
 
 % Frequencies of interest
-omega_3 = [ 5e-2 7.5e-2 1e-1 ];
+% omega_3 = [ 5e-2 7.5e-2 1e-1 ];
+omega_3 = [ 0.5 1.0 5.0 6.0 ];
 
 % Restriction
-a_d     = 1e-1;
+a_d     = 5;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
@@ -479,21 +458,22 @@ end
 %
 
 % Frequencies of interest
-omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
+% omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
+omega_6 = [ 0.5 1.0 5.0 6.0 7.0 ];
 
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 1.0e-1; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 2.5e-1; eps_L = 0.025;
+a_L = 5; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );

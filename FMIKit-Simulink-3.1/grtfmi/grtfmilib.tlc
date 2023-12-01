@@ -1,0 +1,292 @@
+%% 
+%%  TLC library with utility functions for the FMU 
+%%  model description (XML) generation.
+%%
+
+%function GetFMIType(record) void
+  %assign dataTypeId   = LibGetRecordDataTypeId(record)
+  %assign dataType     = ::CompiledModel.DataTypes.DataType[dataTypeId]
+  %assign dataTypeName = SLibGetRecordDataTypeName(record, "")
+  %if ISFIELD(dataType, "Enumeration")
+    %return "Enumeration"
+  %endif
+  %switch dataTypeName
+    %case "real_T"
+    %case "real32_T"
+      %return "Real"
+    %case "int8_T"
+    %case "uint8_T"
+    %case "int16_T"
+    %case "uint16_T"
+    %case "int32_T"
+    %case "uint32_T"
+      %return "Integer"
+    %case "boolean_T"
+      %return "Boolean"
+    %default 
+      %return "" 
+  %endswitch
+%endfunction
+
+%function GetFMI3Type(record) void
+  %assign dataTypeId   = LibGetRecordDataTypeId(record)
+  %assign dataType     = ::CompiledModel.DataTypes.DataType[dataTypeId]
+  %assign dataTypeName = SLibGetRecordDataTypeName(record, "")
+  %if ISFIELD(dataType, "Enumeration")
+    %return "Enumeration"
+  %endif
+  %switch dataTypeName
+    %case "real_T"
+      %return "Float64"
+    %case "real32_T"
+      %return "Float32"
+    %case "int8_T"
+      %return "Int8"
+    %case "uint8_T"
+      %return "UInt8"
+    %case "int16_T"
+      %return "Int16"
+    %case "uint16_T"
+      %return "UInt16"
+    %case "int32_T"
+      %return "Int32"
+    %case "uint32_T"
+      %return "UInt32"
+    %case "boolean_T"
+      %return "Boolean"
+    %default 
+      %return "" 
+  %endswitch
+%endfunction
+
+%function GetDefaultStartValue(record) Output
+  %assign dataTypeId = LibGetRecordDataTypeId(record)
+  %assign dataType   = ::CompiledModel.DataTypes.DataType[dataTypeId]
+  %if ISFIELD(dataType, "Enumeration")
+    %return dataType.Enumeration[0].Value
+  %else
+    %return "0"
+  %endif
+%endfunction
+
+%function MinMaxAttributes(port, fmiType)
+  %assign attributes = ""
+  %if !ISFIELD(port, "BlockName")
+    %return attributes
+  %endif
+  %switch fmiType
+    %case "Real"
+    %case "Float32"
+    %case "Float64"
+      %assign outmin       = FEVAL("get_param", "%<port.BlockName>", "Outmin")
+      %assign outmin       = FEVAL("str2num", "%<outmin>")
+      %if !ISEMPTY(outmin)
+        %assign attributes = "%<attributes> min=\"%<outmin>\""
+      %endif
+      %assign outmax       = FEVAL("get_param", "%<port.BlockName>", "Outmax")
+      %assign outmax       = FEVAL("str2num", "%<outmax>")
+      %if !ISEMPTY(outmax)
+        %assign attributes = "%<attributes> max=\"%<outmax>\""
+      %endif
+      %if ISFIELD(port, "UnitIdx") && EXISTS("Units")
+        %assign unit = Units.Unit[port.UnitIdx].ASCIIEscapedUnitExpr
+      %elseif ISFIELD(port, "BlockName")
+        %assign unit = FEVAL("get_param", "%<port.BlockName>", "Unit")
+      %else
+        %assign unit = ""
+      %endif
+      %if TYPE(unit) == "String" && !ISEMPTY(unit) && unit != "inherit"
+        %assign unit = FEVAL("grtfmi_xml_encode", unit)
+        %assign attributes = "%<attributes> unit=\"%<unit>\""
+        %assign ::units = ::units + unit
+      %endif
+  %endswitch
+  %return attributes
+%endfunction
+
+%function DescriptionAttribute(block)
+  %assign attribute = ""
+  %if !ISFIELD(block, "BlockName")
+    %return attribute
+  %endif
+  %assign description = FEVAL("get_param", "%<block.BlockName>", "Description")
+  %if !ISEMPTY(description)
+    %assign description = FEVAL("grtfmi_xml_encode", description)
+    %assign attribute = " description=\"%<description>\""
+  %endif
+  %return attribute
+%endfunction
+
+%function VariableFMI2(record, variableName, dataName, vr, variableAttr, typeAttr) Output
+  %assign variableName = FEVAL("grtfmi_xml_encode", variableName)
+  %assign dataTypeName = SLibGetRecordDataTypeName(record, "")
+  %assign fmiType      = GetFMIType(record)
+  %assign dtypeID      = LibGetRecordContainerDataTypeId(record) 
+  %assign dataType     = ::CompiledModel.DataTypes.DataType[dtypeID]
+  %assign dims         = LibGetRecordDimensions(record)
+  %assign width        = LibGetRecordWidth(record)
+  %assign nRows        = dims[0]
+  %assign nCols        = SIZE(dims, 1) == 1 ? 1 : dims[1]
+  %assign descAttr     = DescriptionAttribute(record)
+  %assign variableAttr = "%<variableAttr>%<descAttr>"
+  %assign minMaxAttr   = MinMaxAttributes(record, fmiType)
+  %assign typeAttr     = "%<typeAttr>%<minMaxAttr>"
+  %if ISFIELD(record, "IsPseudoWorkspaceVar") && record.IsPseudoWorkspaceVar == "yes"
+    %return vr
+  %endif
+  %if ISEMPTY(fmiType)
+    %if FEVAL("grtfmi_is_lookup_table",  record)
+      %% LookupTable
+      %assign s = FEVAL("grtfmi_generate_lookup_table_fmi2", vr, variableName, record)
+      %selectfile xmlfile2
+%<s.xml>
+      %selectfile incfile
+%<s.c>
+      %return s.vr
+    %elseif ISFIELD(dataType, "Elements")
+      %% Bus
+      %foreach arrIdx = width
+        %foreach elementIdx = dataType.NumElements
+          %if width == 1
+            %assign subs = ""
+          %else
+            %assign subs = "[%<arrIdx>]"
+          %endif
+          %assign element = dataType.Elements[elementIdx]
+          %assign vr = VariableFMI2(element, "%<variableName>%<subs>.%<element.Name>", "%<dataName>%<subs>.%<element.Name>", vr, variableAttr, typeAttr)
+        %endforeach
+      %endforeach
+    %else
+      %return vr
+    %endif
+  %else
+    %if fmiType == "Enumeration"
+      %assign dtypeID = 6
+      %assign typeAttr = " declaredType=\"%<dataType.DTName>\"%<typeAttr>"
+    %endif
+    %selectfile incfile
+
+    %if width > 1  %% array
+    for (size_t i = 0; i < %<width>; i++) {
+        modelVariables[%<vr-1> + i].dtypeID = %<dtypeID>;
+        modelVariables[%<vr-1> + i].size    = 0;
+        modelVariables[%<vr-1> + i].address = %<dataName>[i]);
+    }
+    %else  %% scalar
+    modelVariables[%<vr-1>].dtypeID = %<dtypeID>;
+    modelVariables[%<vr-1>].size    = 0;
+    modelVariables[%<vr-1>].address = %<dataName>);
+    %endif
+    %assign index = 0
+    %foreach colid = nCols
+    %foreach rowid = nRows
+      %if nCols > 1 && nRows > 1
+        %assign variableSubs = "[%<rowid>,%<colid>]"
+      %elseif width > 1
+        %assign variableSubs = "[%<index>]"
+      %else
+        %assign variableSubs = ""
+      %endif
+      %if ISFIELD(record, "Value")
+        %assign valueType = TYPE(record.Value)
+        %if valueType == "Matrix"
+          %assign startValue = record.Value[rowid][colid]
+        %elseif valueType == "Vector"
+          %assign startValue = record.Value[index]
+        %else
+          %assign startValue = record.Value
+        %endif
+        %switch dataTypeName
+          %case "real_T"
+          %case "real32_T"
+            %if "%<startValue>" == "rtInf"
+              %assign startValue = "INF"
+            %elseif "%<startValue>" == "rtMinusInf"
+              %assign startValue = "-INF"
+            %elseif "%<startValue>" == "rtNaN"
+              %assign startValue = "NAN"
+            %else
+              %assign startValue = FEVAL("strrep", "%<startValue>", "F", "")       
+            %endif
+            %break
+          %case "uint8_T"
+          %case "uint16_T"
+          %case "uint32_T"
+            %assign startValue = FEVAL("strrep", "%<startValue>", "U", "")
+            %break
+          %default
+            %break
+        %endswitch
+        %assign startAttr = " start=\"%<startValue>\""
+      %else
+        %assign startAttr = ""
+      %endif
+      %selectfile xmlfile2
+    <ScalarVariable name="%<variableName>%<variableSubs>" valueReference="%<vr>"%<variableAttr>>
+      <%<fmiType>%<startAttr>%<typeAttr>/>
+    </ScalarVariable>
+      %assign index = index + 1
+      %assign vr = vr + 1
+    %endforeach
+    %endforeach
+  %endif
+  %return vr
+%endfunction
+
+%function VariableFMI3(record, variableName, dataName, vr, variableAttr, typeAttr) Output
+  %assign variableName = FEVAL("grtfmi_xml_encode", variableName)
+  %assign dataTypeName = SLibGetRecordDataTypeName(record, "")
+  %assign fmiType      = GetFMI3Type(record)
+  %assign dtypeID      = LibGetRecordDataTypeId(record)
+  %assign dims         = LibGetRecordDimensions(record)
+  %assign width        = LibGetRecordWidth(record)
+  %assign nRows        = dims[0]
+  %assign nCols        = SIZE(dims, 1) == 1 ? 1 : dims[1]
+  %assign descAttr     = DescriptionAttribute(record)
+  %assign variableAttr = "%<variableAttr>%<descAttr>"
+  %assign minMaxAttr   = MinMaxAttributes(record, fmiType)
+  %assign variableAttr = "%<variableAttr>%<minMaxAttr>"
+  %if ISFIELD(record, "IsPseudoWorkspaceVar") && record.IsPseudoWorkspaceVar == "yes"
+    %return vr
+  %endif
+  %if ISEMPTY(fmiType)
+    %if FEVAL("grtfmi_is_lookup_table",  record)
+      %% LookupTable
+      %assign s = FEVAL("grtfmi_generate_lookup_table_fmi3", vr, variableName, record)
+      %selectfile xmlfile2
+%<s.xml>
+      %selectfile incfile
+%<s.c>
+      %return s.vr
+    %else
+      %return vr
+    %endif
+  %endif
+  %if nRows == 0 || nCols == 0
+    %return vr
+  %endif
+  %selectfile xmlfile2
+  %if ISFIELD(record, "Value")
+    %assign startValue = FEVAL("grtfmi_start_value", record.Value)
+    %assign variableAttr = "%<variableAttr> start=\"%<startValue>\""
+  %endif
+  %if fmiType == "Enumeration"
+    %assign dtypeID = 6
+    %assign variableAttr = " declaredType=\"%<dataType.DTName>\"%<variableAttr>"
+  %endif
+  %if width == 1
+    <%<fmiType> name="%<variableName>" valueReference="%<vr>"%<variableAttr>/>
+  %else
+    <%<fmiType> name="%<variableName>" valueReference="%<vr>"%<variableAttr>>
+    %foreach dimidx = SIZE(dims, 1)
+      <Dimension start="%<dims[dimidx]>"/>
+    %endforeach
+    </%<fmiType>>
+  %endif
+  %selectfile incfile
+    modelVariables[%<vr-1>].dtypeID = %<dtypeID>;
+    modelVariables[%<vr-1>].size    = %<width>;
+    modelVariables[%<vr-1>].address = %<dataName>);
+  %assign vr = vr + 1
+  %return vr
+%endfunction

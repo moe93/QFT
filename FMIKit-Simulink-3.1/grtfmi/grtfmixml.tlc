@@ -1,0 +1,366 @@
+%% Generate modelDescription.xml
+%openfile xmlfile1 = "modelDescription1.xml"
+%openfile xmlfile2 = "modelDescription2.xml"
+%openfile incfile = "fmiwrapper.inc"
+%with CompiledModel
+  %selectfile STDOUT
+### Writing modelDescription.xml
+
+  %assign ::units = []
+
+  %selectfile xmlfile1
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription
+  %if FMIVersion == "2"
+  fmiVersion="2.0"
+  guid="%<GUID>"
+  %else
+  fmiVersion="3.0"
+  instantiationToken="%<GUID>"
+  %endif
+  modelName="%<OrigName>"
+  %assign FMIKitVersion = FEVAL("FMIKit.version")
+  generationTool="Simulink %<Version> with FMI Kit %<FMIKitVersion> (grtfmi.tlc, %<Solver>, %<FundamentalStepSize> s)"
+  %assign XMLdate = FEVAL("grtfmi_xml_datetime")
+  generationDateAndTime="%<XMLdate>"
+  %assign description = FEVAL("get_param", "%<OrigName>", "Description")
+  %if !ISEMPTY(description)
+  description="%<description>"
+  %endif
+  %if !ISEMPTY(ModelAuthor)
+  author="%<ModelAuthor>"
+  %endif
+  version="%<ModelVersion>">
+
+  <CoSimulation
+    modelIdentifier="%<OrigName>"
+    canBeInstantiatedOnlyOncePerProcess="true"
+    canHandleVariableCommunicationStepSize="true">
+  %if SourceCodeFMU
+    %assign simscapeBlocks = FEVAL("find_system", modelName, "BlockType", "SimscapeBlock")
+    %if ISEMPTY(simscapeBlocks)
+      %assign sourceFiles = []
+    %else
+      %assign sourceFiles = FEVAL("grtfmi_simscape_sources")
+    %endif
+    %assign modelSources = FEVAL("grtfmi_model_sources", modelName, RTWGenSettings.RelativeBuildDir)
+    %assign modelSources = modelSources[1]
+    %foreach i = SIZE(modelSources, 1)
+      %assign sourceFiles = sourceFiles + modelSources[i]
+    %endforeach
+    %if FMIVersion == "2"
+    <SourceFiles>
+      <File name="fmi2Functions.c"/>
+      %foreach i = SIZE(sourceFiles, 1)
+        %assign sourceFile = FEVAL("grtfmi_filename", sourceFiles[i])
+      <File name="%<sourceFile>"/>
+      %endforeach
+    </SourceFiles>
+    %endif
+  %endif
+  </CoSimulation>
+  %selectfile xmlfile2
+  %if ISFIELD(CompiledModel, "DataTypes") && DataTypes.NumDataTypes > 1
+    %assign enumerationDataTypes = []
+    %foreach dataTypeIdx = DataTypes.NumDataTypes
+      %assign dataType = DataTypes.DataType[dataTypeIdx]
+      %if ISFIELD(dataType, "Enumeration")
+        %assign enumerationDataTypes = enumerationDataTypes + dataType
+      %endif
+    %endforeach
+    %if !ISEMPTY(enumerationDataTypes)
+
+  <TypeDefinitions>
+      %foreach dataTypeIdx = SIZE(enumerationDataTypes, 1)
+        %assign dataType = enumerationDataTypes[dataTypeIdx]
+        %if FMIVersion == "2"
+    <SimpleType name="%<dataType.DTName>">
+      <Enumeration>
+          %foreach enumerationIdx = SIZE(dataType.Enumeration, 1)
+            %assign enumeration = dataType.Enumeration[enumerationIdx]
+        <Item name="%<enumeration.String>" value="%<enumeration.Value>"/>
+          %endforeach
+      </Enumeration>
+    </SimpleType>
+        %else
+    <EnumerationType name="%<dataType.DTName>">
+          %foreach enumerationIdx = SIZE(dataType.Enumeration, 1)
+            %assign enumeration = dataType.Enumeration[enumerationIdx]
+      <Item name="%<enumeration.String>" value="%<enumeration.Value>"/>
+          %endforeach
+    </EnumerationType>
+        %endif
+      %endforeach
+  </TypeDefinitions>
+    %endif
+  %endif
+
+  <DefaultExperiment
+    startTime="%<StartTime>"
+  %if "%<StopTime>" != "rtInf"
+    stopTime="%<StopTime>"
+  %endif
+    stepSize="%<FixedStepOpts.FixedStep>"/>
+
+  <ModelVariables>
+  %assign vr = 1
+  %assign outputIndices = []
+  %selectfile incfile
+#include "simstruc_types.h"
+
+#include "%<OrigName>.h"
+#include "%<OrigName>_private.h"
+
+typedef struct {
+	BuiltInDTypeId dtypeID;
+	size_t size;
+	void* address;
+} ModelVariable;
+
+#ifndef NO_FMI_FUNCTION_PREFIX
+  %if FMIVersion == "2"
+#define FMI2_FUNCTION_PREFIX %<OrigName>_
+  %else
+#define FMI3_FUNCTION_PREFIX %<OrigName>_
+  %endif
+#endif
+
+#define MODEL_GUID       "%<GUID>"
+#define MODEL            %<OrigName>
+#define MODEL_INITIALIZE %<OrigName>_initialize
+#define MODEL_STEP       %<OrigName>_step
+#define MODEL_TERMINATE  %<OrigName>_terminate
+#define RT_MDL_TYPE      %<tSimStructType>
+#define STEP_SIZE        %<FixedStepOpts.FixedStep>
+#define NUM_TASKS        %<NumTasks>
+#define NUM_SAMPLE_TIMES %<NumSampleTimes>
+#define FIRST_TASK_ID    %<FixedStepOpts.TID01EQ>
+
+/* since R2019a the block parameters are defined as extern */
+#ifndef rtmGetDefaultParam
+#define rtmGetDefaultParam(S) (&%<tParameters>)
+#endif
+
+/* Definitions for non-reusable models */
+#define RT_MDL_INSTANCE     %<tSimStruct>
+#define rtmGetU(S)          (&%<tInput>)
+#define rtmGetY(S)          (&%<tOutput>)
+#define rtmGetBlockIO(S)    (&%<tBlockIO>)
+
+  %foreach vargroupid = VarGroups.NumVarGroups
+    %assign vargroup = VarGroups.VarGroup[vargroupid]
+    %if vargroup.Category == "Parameter"
+/* Parameters */
+#define RT_MDL_P_T  %<GlobalScope.tParametersType>
+#define RT_MDL_P    %<GlobalScope.tParameters>
+    %endif
+  %endforeach
+
+static void initializeModelVariables(RT_MDL_TYPE* S, ModelVariable modelVariables[]) {
+  %% Parameters
+  %selectfile xmlfile2
+  %if FMIVersion == "3"
+
+    <!-- Independent Variable -->
+    <Float64 name="time2" valueReference="0" causality="independent" variability="continuous"/>
+  %endif
+
+    <!-- Parameters -->
+  %with ModelParameters
+    %foreach paramid = NumParameters
+      %assign param = Parameter[paramid]
+      %if ConfigSet.InlineParams && (!ISFIELD(param, "Tunable") || param.Tunable != "yes")
+        %continue
+      %endif
+      %if FEVAL("grtfmi_exclude_variable", "%<param.Identifier>", "%<VisibleParameters>")
+        %continue
+      %endif
+      %assign variableName = param.Identifier
+      %assign sigSrc       = param.OwnerSysIdx
+      %if sigSrc[1] < 0
+        %assign identifier = param.Identifier
+      %else
+        %assign varGroupIdx  = FcnSysVarGroupIndex(::CompiledModel.System[sigSrc[0]], "Parameter", sigSrc[1])
+        %if varGroupIdx < 0
+          %assign identifier = param.Identifier
+        %else
+          %assign varGroupName = ::CompiledModel.VarGroups.VarGroup[varGroupIdx].Name
+          %assign identifier   = varGroupName + "." + param.Identifier
+          %assign variableName = varGroupName + "." + variableName
+        %endif
+      %endif
+      %assign variableName = "Parameters." + variableName
+      %if ISFIELD(param, "RegisteredIdentifier")
+        %assign dataName = "&(%<param.RegisteredIdentifier>"
+      %elseif ISFIELD(param, "StorageClass") && param.StorageClass == "ExportedGlobal"
+        %assign dataName = "&(%<identifier>"
+      %else
+        %assign dataName = "&(rtmGetDefaultParam(S)->%<identifier>"
+      %endif
+      %if FMIVersion == "2"
+        %assign vr = VariableFMI2(param, variableName, dataName, vr, " causality=\"parameter\" variability=\"tunable\"", "")
+      %else
+        %assign vr = VariableFMI3(param, variableName, dataName, vr, " causality=\"parameter\" variability=\"tunable\"", "")
+      %endif
+    %endforeach
+  %endwith
+  %selectfile xmlfile2
+  %% Inputs
+  %with ExternalInputs
+    %if NumExternalInputs > 0
+      %selectfile xmlfile2
+
+    <!-- Inputs -->
+      %foreach portid = NumExternalInputs
+        %assign port = ExternalInput[portid]
+        %assign variableName = FEVAL("get_param", port.BlockName, "Name")
+        %if port.StorageClass == "ExportedGlobal"
+          %assign dataName = "&(%<port.Identifier>"
+        %else
+          %assign dataName = "&(rtmGetU(S)->%<port.Identifier>"
+        %endif
+        %assign startValue = GetDefaultStartValue(port)
+        %if FMIVersion == "2"
+          %assign vr = VariableFMI2(port, variableName, dataName, vr, " causality=\"input\"", " start=\"%<startValue>\"")
+        %else
+          %assign vr = VariableFMI3(port, variableName, dataName, vr, " causality=\"input\" start=\"%<startValue>\"", "")
+        %endif
+      %endforeach
+    %endif
+  %endwith
+  %% Outputs
+  %with ExternalOutputs
+    %if NumExternalOutputs > 0
+      %selectfile xmlfile2
+
+    <!-- Outputs -->
+      %foreach portid = NumExternalOutputs
+        %assign port         = ExternalOutput[portid]
+        %assign sysid        = port.Block[0]
+        %assign blkid        = port.Block[1]
+        %assign block        = System[sysid].Block[blkid]
+        %assign variableName = FEVAL("get_param", block.Name, "Name")
+        %if !ISFIELD(port, "VarGroupIdx") && ISFIELD(port, "SigLabel") && !ISEMPTY(port.SigLabel)
+          %assign dataName = "&(%<port.SigLabel>"
+        %else
+          %assign dataName = "&(rtmGetY(S)->%<block.Identifier>"
+        %endif
+        %if FMIVersion == "2"
+          %assign nextVR = VariableFMI2(port, variableName, dataName, vr, " causality=\"output\"", "")
+        %else
+          %assign nextVR = VariableFMI3(port, variableName, dataName, vr, " causality=\"output\"", "")
+        %endif
+        %foreach vrIdx = nextVR - vr
+          %assign outputIndices = outputIndices + (vr + vrIdx)
+        %endforeach
+        %assign vr = nextVR
+      %endforeach
+    %endif
+  %endwith
+  %% Block Outputs
+  %with ::CompiledModel.BlockOutputs
+    %if IncludeBlockOutputs && NumExternalBlockOutputs > 0
+      %selectfile xmlfile2
+
+    <!-- External Block Outputs -->
+      %foreach blockoutputid = NumExternalBlockOutputs
+        %assign blockoutput  = ExternalBlockOutput[blockoutputid]
+        %assign identifier   = LibGetRecordIdentifier(blockoutput)
+        %assign variableName = identifier
+        %assign dataName = "&(%<identifier>"
+        %if FMIVersion == "2"
+          %assign vr = VariableFMI2(blockoutput, variableName, dataName, vr, "", "")
+        %else
+          %assign vr = VariableFMI3(blockoutput, variableName, dataName, vr, "", "")
+        %endif
+      %endforeach
+    %endif
+    %if IncludeBlockOutputs && NumGlobalBlockOutputs > 0
+      %selectfile xmlfile2
+
+    <!-- Global Block Outputs -->
+      %foreach blockoutputid = NumGlobalBlockOutputs
+        %assign blockoutput = GlobalBlockOutput[blockoutputid]
+        %if ISFIELD(blockoutput, "IsRemovedInIR") && blockoutput.IsRemovedInIR
+          %continue
+        %endif
+        %if !ISFIELD(blockoutput, "VarGroupIdx")
+          %continue
+        %endif
+        %assign identifier   = LibGetRecordIdentifier(blockoutput)
+        %assign variableName = identifier
+        %if ISFIELD(blockoutput, "GrSrc") && blockoutput.GrSrc[1] != -1
+          %assign varPath = LibGetFormattedBlockPath(SLibGrBlock(blockoutput.GrSrc))
+          %assign varPath = FEVAL("grtfmi_block_path", varPath)
+          %assign variableName = "%<varPath>.%<variableName>"
+        %endif
+        %assign varGroup = ::CompiledModel.VarGroups.VarGroup[blockoutput.VarGroupIdx[0]]
+        %if varGroup.ParentVarGroupIdx == -1
+          %assign dataName = "&(rtmGetBlockIO(S)->%<identifier>"
+        %else
+          %assign dataName = "&(rtmGetBlockIO(S)->%<varGroup.Name>.%<identifier>"
+        %endif
+        %if FMIVersion == "2"
+          %assign vr = VariableFMI2(blockoutput, variableName, dataName, vr, "", "")
+        %else
+          %assign vr = VariableFMI3(blockoutput, variableName, dataName, vr, "", "")
+        %endif
+      %endforeach
+    %endif
+  %endwith
+  %% close fmiwrapper.inc
+  %selectfile incfile
+}
+
+%assign nModelVariables = vr - 1
+#define N_MODEL_VARIABLES %<nModelVariables>
+  %selectfile xmlfile2
+
+  </ModelVariables>
+
+  <ModelStructure>
+  %if SIZE(outputIndices, 1) > 0
+    %if FMIVersion == "2"
+    <Outputs>
+      %foreach iOutputIndex = SIZE(outputIndices, 1)
+      <Unknown index="%<outputIndices[iOutputIndex]>"/>
+      %endforeach
+    </Outputs>
+    <InitialUnknowns>
+      %foreach iOutputIndex = SIZE(outputIndices, 1)
+      <Unknown index="%<outputIndices[iOutputIndex]>"/>
+      %endforeach
+    </InitialUnknowns>
+    %else
+      %foreach iOutputIndex = SIZE(outputIndices, 1)
+    <Output valueReference="%<outputIndices[iOutputIndex]>"/>
+      %endforeach
+      %foreach iOutputIndex = SIZE(outputIndices, 1)
+    <InitialUnknown valueReference="%<outputIndices[iOutputIndex]>"/>
+      %endforeach
+    %endif
+  %endif
+  </ModelStructure>
+
+</fmiModelDescription>
+  %if SIZE(::units, 1) > 0
+    %assign ::units = FEVAL("grtfmi_unique", ::units)
+    %selectfile xmlfile1
+
+  <UnitDefinitions>
+    %foreach unitIdx = SIZE(::units, 1)
+    <Unit name="%<units[unitIdx]>"/>
+    %endforeach
+  </UnitDefinitions>
+  %endif
+%endwith
+%closefile incfile
+%closefile xmlfile1
+%closefile xmlfile2
+
+%openfile xmlfile = "modelDescription.xml"
+%selectfile xmlfile
+%assign buildDir = FEVAL("grtfmi_build_directory")
+%include "%<buildDir>/modelDescription1.xml"
+%include "%<buildDir>/modelDescription2.xml"
+%closefile xmlfile
