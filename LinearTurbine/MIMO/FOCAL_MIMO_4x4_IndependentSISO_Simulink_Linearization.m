@@ -80,10 +80,11 @@ dirF = fullfile( ctrlSrc, 'R3', 'F', 'Method_1' );
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
-name_mdl    = 'Simulink_Linearized_Model.mat';
-% name_mdl    = 'azimuth_variation_R3_24plants.mat';
+% name_mdl    = 'Simulink_Linearized_Model.mat';
+name_mdl    = 'Simulink_Linearized_Model_REV002.mat';
 stateSpace  = load( [data_dir name_mdl ] );
-stateSpace  = stateSpace.Simulink_Linearization_Model_Timed_Based_Linearization;
+% stateSpace  = stateSpace.Simulink_Linearization_Model_Timed_Based_Linearization;
+stateSpace  = stateSpace.Simulink_Linearization_Model_FMIKit_Timed_Based_Linearization;
 
 % % --- Get number of states
 % [nStates, ~, ~] = size( stateSpace.A );
@@ -269,7 +270,10 @@ fprintf( 'Step 3:' );
 fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
-w = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
+% w = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
+w = [ 0.10 0.25 0.50 0.75 1.00 2.50 ...
+      5.00 6.00 7.00 8.00 9.00 10.0 ...
+      15.0 20.0 25.0 30.0 35.0 40.0 50.0 ];
 
 if( PLOT )
     % --- Plot QFT templates

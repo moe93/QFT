@@ -40,10 +40,30 @@ clear FMI* script*
 %% Load Model
 %
 
-t_linearization = [ 163.1450  163.8150  164.4850  165.1550  165.8250  ...
-                    166.4950  167.1650  167.8350  168.5050  169.1750  ...
-                    169.8440  170.5140  171.1830 ];
-
 % open_system( '.\Simulink_Linearization_Model' );
 open_system( '.\Simulink_Linearization_Model_FMIKit' );
 
+%% Required model parameters
+%
+
+% t_linearization = [ 163.1450  163.8150  164.4850  165.1550  165.8250  ...
+%                     166.4950  167.1650  167.8350  168.5050  169.1750  ...
+%                     169.8440  170.5140  171.1830 ];
+t_linearization = [ 188.3960  188.9640  189.5320  190.0980  190.6660  ...
+                    191.2340  191.8020  192.3700  192.9360  193.5040  ...
+                    194.0720  194.6400  195.2060 ];
+
+%% Simple results analysis
+
+idx = zeros( length(t_linearization), 1 );
+for i = 1:length( t_linearization )
+    t = t_linearization( i );
+    idx( i ) = find( abs(out.Azimuth_angle.Time - t) <= 1e-3, 1, 'first' );
+end
+
+out.Azimuth_angle.Data( idx )
+
+%% Save results to .mat file
+%
+
+save Simulink_Linearized_Model_REV002.mat out Simulink_Linearization_Model_FMIKit_Timed_Based_Linearization;
