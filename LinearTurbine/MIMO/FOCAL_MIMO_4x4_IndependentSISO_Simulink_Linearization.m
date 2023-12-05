@@ -36,7 +36,7 @@ CNTR = 1;                                   % Figure handle counter
 
 % --- Enable/disable plotting figures
 PLOT = true;                                %#ok<NASGU> If true, plot figures!
-% PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
+PLOT = false;                               % COMMENT OUT TO PLOT FIGURES
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
@@ -74,14 +74,15 @@ if( isunix )
 end
 
 % --- Directory where QFT generated controllers are stored
-dirG = fullfile( ctrlSrc, 'R3', 'G', 'Method_1' );
-dirF = fullfile( ctrlSrc, 'R3', 'F', 'Method_1' );
+dirG = fullfile( ctrlSrc, 'R3', 'G', 'Independent_SISO' );
+dirF = fullfile( ctrlSrc, 'R3', 'F', 'Independent_SISO' );
 
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
 % name_mdl    = 'Simulink_Linearized_Model.mat';
-name_mdl    = 'Simulink_Linearized_Model_REV002.mat';
+% name_mdl    = 'Simulink_Linearized_Model_REV002.mat';
+name_mdl    = 'Simulink_Linearized_Model_REV003.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 % stateSpace  = stateSpace.Simulink_Linearization_Model_Timed_Based_Linearization;
 stateSpace  = stateSpace.Simulink_Linearization_Model_FMIKit_Timed_Based_Linearization;
@@ -237,7 +238,7 @@ P0 = TF;                        % Nominal Transfer Function
 % nompt = length(P);
 
 % --- Define nominal plant case (recall, P(:,:,1) corresponds to P0)
-nompt = 1;
+nompt = 8;
 
 % --- Get total plants size
 % [x-dim, y-dim, z-dim] = [nrowsP, ncolsP, nvarsP]
@@ -245,14 +246,13 @@ nompt = 1;
 
 % --- Cleanup plants transfer function by removing values below 1e-08 and
 % minreal of 0.01
-P = numerical_cleanup( P, 1e-08, 0.01 );
 % P = numerical_cleanup( P, 1e-08, 0.01 );
 
 % [INFO] ...
 fprintf( ACK );
 
 % --- Plot bode diagram
-ww = logspace( log10(0.50), log10(10.0), 2048 );
+ww = logspace( log10(0.10), log10(50.0), 2048 );
 [p0, theta0] = bode( P0, ww );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
@@ -373,7 +373,7 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
+omega_1 = [ 0.1 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
 
 % Restriction (for p_ii, i=1,2,3,4)
 % W_s         = 1.66;
@@ -413,7 +413,7 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 5e-2 7.5e-2 1e-1 ];
-omega_3 = [ 0.5 1.0 5.0 6.0 ];
+omega_3 = [ 0.1 0.5 1.0 5.0 ];
 
 % Restriction
 a_d     = 5;
@@ -463,21 +463,21 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
-omega_6 = [ 0.5 1.0 5.0 6.0 7.0 ];
+omega_6 = [ 0.1 0.5 1.0 5.0 ];
 
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 2; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 3.5; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 5; eps_L = 0.025;
+a_L = 4.5; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
@@ -523,6 +523,7 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
+clear bdb1
 for i=1:width(P)
     p_ii = P( i, i, :, : );
     bdb1(:, :, i) = sisobnds( spec, omega_1, del_1, p_ii, [], nompt );
@@ -556,6 +557,7 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
+clear bdb2
 for i=1:width(P)
     p_ii = P( i, i, :, : );
     bdb2(:, :, i) = sisobnds( spec, omega_3, del_3, p_ii, [], nompt );
@@ -574,6 +576,8 @@ end
 % [INFO] ...
 fprintf( ACK );
 
+%% Reference tracking bounds
+
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -585,7 +589,7 @@ fprintf( 'bdb%i = sisobnds( %i, ... )\n', spec, spec );
 fprintf( '\t\t > ' );
 
 % --- Compute bounds
-clear bdb7;
+clear bdb7
 for i=1:width(P)
     p_ii = P( i, i, :, : );
     bdb7(:, :, i) = sisobnds( spec, omega_6, del_6, p_ii, [], nompt );
@@ -612,6 +616,7 @@ fprintf( 'Step 8:' );
 fprintf( '\tGrouping bounds...' );
 
 % --- Grouping bounds
+clear bdb
 for i=1:width(P)
     bdb( :, :, i ) = grpbnds( bdb1(:,:,i), bdb2(:,:,i), bdb7(:,:,i) );
     if( PLOT )
@@ -626,8 +631,9 @@ end
 fprintf( ACK );
 fprintf( '\tIntersection of bounds...' );
 
+% --- Find bound intersections
+clear ubdb
 for i=1:width(P)    
-    % --- Find bound intersections
     ubdb( :, :, i ) = sectbnds( bdb( :, :, i ) );
     if( PLOT )
         plotbnds( ubdb( :, :, i ) );
@@ -689,18 +695,8 @@ for i=1:width(P)
     % Plant, P_ii
     fprintf( "\tPlant, P_%i%i:\n", i, i );
     fprintf( "=============================\n" );
-    nyquistStability( P( i, i, nompt ) );
-    zpk( P( i, i, nompt ) )
-%     % Controller, G_ii
-%     fprintf( "\tController, G_%i%i:\n", i, i );
-%     fprintf( "=============================\n" );
-%     nyquistStability( g_ii( :, :, i ) );
-%     zpk( g_ii( :, :, i ) )
-%     % Open-loop, L0
-%     fprintf( "\tOpen-loop, L0=G_%i%i*P_%i%i:\n", i, i, i, i );
-%     fprintf( "=============================\n" );
-%     nyquistStability( g_ii( :, :, i ).*P( i, i, nompt ) );
-%     zpk( g_ii( :, :, i ).*P( i, i, nompt ) )
+    nyquistStability( P( i, i, nompt ) ); disp('');
+%     zpk( P( i, i, nompt ) )
 
     % --- Loop shaping
     lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
