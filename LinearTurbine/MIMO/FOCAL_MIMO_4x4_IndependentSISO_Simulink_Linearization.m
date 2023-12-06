@@ -373,7 +373,8 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.1 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
+omega_1 = [ 0.10 0.25 0.50 0.75 1.00 2.50 ...
+            5.00 6.00 7.00 8.00 9.00 10.0 ];
 
 % Restriction (for p_ii, i=1,2,3,4)
 % W_s         = 1.66;
@@ -413,7 +414,7 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 5e-2 7.5e-2 1e-1 ];
-omega_3 = [ 0.1 0.5 1.0 5.0 ];
+omega_3 = [ 0.10 0.25 0.50 0.75 1.00 2.50 5.00 ];
 
 % Restriction
 a_d     = 5;
@@ -464,20 +465,21 @@ end
 % Frequencies of interest
 % omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
 omega_6 = [ 0.1 0.5 1.0 5.0 ];
+omega_6 = [ 0.10 0.25 0.50 0.75 1.00 2.50 5.00 ];
 
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 3.5; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
+a_U = 2.0; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.025;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 4.5; eps_L = 0.025;
+a_L = 5.0; eps_L = 0.025;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
