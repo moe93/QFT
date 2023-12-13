@@ -82,7 +82,8 @@ dirF = fullfile( ctrlSrc, 'R3', 'F', 'Independent_SISO' );
 data_dir    = './data/';
 % name_mdl    = 'Simulink_Linearized_Model.mat';
 % name_mdl    = 'Simulink_Linearized_Model_REV002.mat';
-name_mdl    = 'Simulink_Linearized_Model_REV003.mat';
+% name_mdl    = 'Simulink_Linearized_Model_REV003.mat';
+name_mdl    = 'Simulink_Linearized_Model_REV004.mat';
 stateSpace  = load( [data_dir name_mdl ] );
 % stateSpace  = stateSpace.Simulink_Linearization_Model_Timed_Based_Linearization;
 stateSpace  = stateSpace.Simulink_Linearization_Model_FMIKit_Timed_Based_Linearization;
@@ -373,8 +374,7 @@ fprintf( '\tDefining stability specifications\n' );
 
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.10 0.25 0.50 0.75 1.00 2.50 ...
-            5.00 6.00 7.00 8.00 9.00 10.0 ];
+omega_1 = [ 0.10 0.25 0.50 0.75 1.00 2.50 ];
 
 % Restriction (for p_ii, i=1,2,3,4)
 % W_s         = 1.66;
@@ -414,10 +414,10 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 5e-2 7.5e-2 1e-1 ];
-omega_3 = [ 0.10 0.25 0.50 0.75 1.00 ];
+omega_3 = [ 0.10 0.25 0.50 ];
 
 % Restriction
-a_d     = 2;
+a_d     = 0.50;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
@@ -464,21 +464,21 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
-omega_6 = [ 0.10 0.25 0.50 0.75 1.00 2.50 5.00 ];
+omega_6 = [ 0.10 0.25 0.50 ];
 
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 1.8; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
+a_U = 0.75; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.005;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 4.4; eps_L = 0.00;
+a_L = 1.00; eps_L = 0.005;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
@@ -700,7 +700,7 @@ for i=1:width(P)
 %     zpk( P( i, i, nompt ) )
 
     % --- Loop shaping
-%     lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
+    lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
 %     qpause;
 end
 
