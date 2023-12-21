@@ -206,11 +206,10 @@ for variation = 1:n_Plants                          % Loop over variations
 end
 
 
-% % --- EXTRA STEP: modify Pw(s) as per the problem requirement
-% % Add low-ass filter
-% f_LP      = tf( 1, [1/(1.1e-4)^2, 2/(1.1e-4), 1 ] );
-% % Generate modified plants
-% P = Pw.*f_LP;
+% % --- EXTRA STEP: Add actuatuor dynamics
+% f_act = 0.03; wn_act = 0.0349+0*2*pi*f_act; zeta_act = 0.7;
+% M_act = tf( 1, [1/wn_act 1] );
+% P = P.*M_act;
 
 % [INFO] ...
 fprintf( ACK );
@@ -235,6 +234,7 @@ A0 = mean( A_full, 3 );     B0 = mean( B_full, 3 );
 C0 = mean( C_full, 3 );     D0 = mean( D_full, 3 );
 P0 = prescale( ss(A0, B0, C0, D0) );
 P0 = tf( P0 );              % Nominal Transfer Function
+% P0 = P0.*M_act;             % Add actuator dynamics
 P(:, :, end+1) = P0;
 nompt = length(P);
 
@@ -253,7 +253,7 @@ nompt = length(P);
 fprintf( ACK );
 
 % --- Plot bode diagram
-ww = logspace( log10(0.10), log10(50.0), 2048 );
+ww = logspace( log10(0.10), log10(20.0), 2048 );
 [p0, theta0] = bode( P0, ww );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
@@ -272,9 +272,8 @@ fprintf( '\tPlotting QFT templates...' );
 
 % --- Working frequencies
 % w = [ 0.5 1.0 5.0 6.0 7.0 8.0 9.0 10.0 ];
-w = [ 0.10 0.25 0.50 0.75 1.00 2.50 ...
-      5.00 6.00 7.00 8.00 9.00 10.0 ...
-      15.0 20.0 25.0 30.0 35.0 40.0 50.0 ];
+w = [ 0.10 0.15 0.20 0.25 0.30 0.35 0.50 ...
+      0.75 1.00 2.50 5.00 10.0 15.0 20.0 ];
 
 if( PLOT )
     % --- Plot QFT templates
@@ -372,14 +371,17 @@ end
 fprintf( 'Step 4:' );
 fprintf( '\tDefining stability specifications\n' );
 
+w = [ 0.10 0.15 0.20 0.25 0.30 0.35 0.50 0.75 1.00 ];
+
 % --- Type 1
 % Frequencies of interest
-omega_1 = [ 0.10 0.25 0.50 0.75 1.00 2.50 ];
+% omega_1 = [ 0.10 0.25 0.50 0.75 1.00 2.50 ];
+omega_1 = [ 0.10 0.15 0.20 0.25 0.30 0.35 0.50 0.75 1.00 ];
 
 % Restriction (for p_ii, i=1,2,3,4)
 % W_s         = 1.66;
-% W_s         = 1.46;
-W_s         = 1.08;
+W_s         = 1.46;
+% W_s         = 1.08;
 % W_s         = 1.01;
 del_1       = W_s;
 PM          = 180 - 2*(180/pi)*acos(0.5/W_s);       % In deg
@@ -414,10 +416,11 @@ fprintf( '\tDefining performance specifications...' );
 
 % Frequencies of interest
 % omega_3 = [ 5e-2 7.5e-2 1e-1 ];
-omega_3 = [ 0.10 0.25 0.50 ];
+% omega_3 = [ 0.10 0.25 0.50 ];
+omega_3 = [ 0.10 0.15 0.20 0.25 0.30 0.35 ];
 
 % Restriction
-a_d     = 0.50;
+a_d     = 0.25;
 num     = [ 1/a_d   , 0 ];
 den     = [ 1/a_d   , 1 ];
 del_3   = tf( num, den );
@@ -464,21 +467,23 @@ end
 
 % Frequencies of interest
 % omega_6 = [ 5e-2 7.5e-2 1e-1 2.5e-1 ];
-omega_6 = [ 0.10 0.25 0.50 ];
-
+% omega_6 = [ 0.10 0.25 0.50 ];
+omega_6 = [ 0.10 0.15 0.20 0.25 0.30 0.35 ];
 
 % Restriction
 % -----------
 % Upper bound
 % -----------
-a_U = 0.75; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.005;
+% a_U = 0.75; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.005;
+a_U = 0.80; zeta = 0.8; wn = 1.25*a_U/zeta; eps_U = 0.00;
 num = [ conv([1/a_U 1], [0 1+eps_U]) ];
 den = [ (1/wn)^2 (2*zeta/wn) 1 ];
 del_6_U = tf( num, den );
 % -----------
 % Lower bound
 % -----------
-a_L = 1.00; eps_L = 0.005;
+% a_L = 1.00; eps_L = 0.005;
+a_L = 1.20; eps_L = 0.00;
 num = 1-eps_L;
 den = [ conv([1/a_L 1], [1/a_L 1]) ];
 del_6_L = tf( num, den );
@@ -601,7 +606,7 @@ for i=1:width(P)
         
         % --- Plot bounds
         plotbnds( bdb7(:, :, i) );
-        txt = ['Robust Tracking  Bounds for p' num2str(i) num2str(i) '(s)' ];
+        txt = ['Robust Tracking Bounds for p' num2str(i) num2str(i) '(s)' ];
         title( txt );
         make_nice_plot( PRNT, './figs', txt );
     end
@@ -653,7 +658,8 @@ fprintf( ACK );
 fprintf( 'Step 9:' );
 fprintf( '\tSynthesize G(s)...\n' );
 
-for i=1:width(P)
+% for i=1:width(P)
+for i=1:2
     % --- Controller, G(s)
     G_name  = ['g' num2str(i) num2str(i) '_i.shp'];
     G_file  = fullfile( dirG, G_name );
@@ -687,17 +693,10 @@ end
 wl = logspace( log10(w(1)), log10(w(end)), 2048 );
 
 % --- Loop over plants and design the controller
-for i=1:width(P)
+% for i=1:width(P)
+for i=1:2
     L0(:, :, i) = P( i, i, nompt );
     L0(:, :, i).ioDelay = 0; % no delay
-
-    % --- Print to screen to get more info while designing
-    %
-    % Plant, P_ii
-%     fprintf( "\tPlant, P_%i%i:\n", i, i );
-%     fprintf( "=============================\n" );
-%     nyquistStability( P( i, i, nompt ) ); disp('');
-%     zpk( P( i, i, nompt ) )
 
     % --- Loop shaping
     lpshape( wl, ubdb(:, :, i), L0(:, :, i), g_ii( :, :, i ) );
@@ -714,7 +713,8 @@ fprintf( ACK );
 fprintf( 'Step 10:' );
 fprintf( '\tSynthesize F(s)...\n' );
 
-for i=1:width(P)
+% for i=1:width(P)
+for i=1:2
     % --- Pre-filter, F(s)
     F_name  = ['f' num2str(i) num2str(i) '_i.fsh'];
     F_file  = fullfile( dirF, F_name );
@@ -739,7 +739,8 @@ WW = logspace( log10( omega_6(1) ), ...         % Refine frequency array
                log10( omega_6(end) ), 1024 );
 
 % --- Loop over plants and design the pre-filter
-for i=1:width(P)
+% for i=1:width(P)
+for i=1:2
     PP = P( i, i, nompt );                      % Extract plant
     GG = g_ii( :, :, i );                       % Extract controller
     FF = f_ii( :, :, i );                       % Extract pre-filter
@@ -758,7 +759,8 @@ fprintf( ACK );
 fprintf( 'Steps 11-13:' );
 fprintf( '\tRun Analysis...' );
 
-for i=1:width(P)
+% for i=1:width(P)
+for i=1:2
     PP = P( i, i, nompt );                      % Extract plant
     GG = g_ii( :, :, i );                       % Extract controller
     FF = f_ii( :, :, i );                       % Extract pre-filter
@@ -778,10 +780,10 @@ for i=1:width(P)
     % [INFO] ...
     fprintf( "\t\t> " ); fprintf( ACK );
 
-    fprintf( "Input Disturbance Rejection Specification\n" );
+    fprintf( "Reference Tracking Specification\n" );
     fprintf( '\t> chksiso(7, wl, del_6, p_%i%i, [], g_%i%i, [], f_%i%i)\n', ...
               i, i, i, i, i, i)
-    ind = find(wl <= max(omega_6));
+    ind = wl <= max(omega_6);
     chksiso( 7, wl(ind), del_6, PP, [], GG, [], FF );
     % [INFO] ...
     fprintf( "\t\t> " ); fprintf( ACK );
