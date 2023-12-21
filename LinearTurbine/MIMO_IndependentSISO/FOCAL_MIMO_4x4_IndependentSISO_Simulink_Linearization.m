@@ -40,7 +40,7 @@ PLOT = true;                                %#ok<NASGU> If true, plot figures!
 
 % --- Enable/disable printing figures
 PRNT = true;                                %#ok<NASGU>
-PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
+% PRNT = false;                               % COMMENT OUT TO PRINT FIGURES
 
 % --- [INFO] Strings
 ACK = 'COMPLETED\n\n';
