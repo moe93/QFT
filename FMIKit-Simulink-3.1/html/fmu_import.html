@@ -1,0 +1,354 @@
+<html>
+<head>
+	<title>FMU Import</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<h1>FMU Import</h1>
+
+<p>The following sections describe how to import and configure FMUs in Simulink models with FMI Kit.</p>
+
+<h2>Add an FMU to a Model</h2>
+
+<ol>
+<li>open the Simulink library browser (<strong>View &gt; Library Browser</strong>) and drag the <strong>FMU</strong> block from the <strong>FMI Kit</strong> library into your model</li>
+<li>double-click the <strong>FMU</strong> block</li>
+<li>click the <strong>Load</strong> button and select the FMU</li>
+<li>click <strong>OK</strong></li>
+</ol>
+
+<p><img src="images/overview.png" alt="Overview Tab" /></p>
+
+<p>The FMU is automatically extracted to the directory specified under <strong>Advanced &gt; Unzip Directory</strong>. This directory must remain in the same relative path when the model is moved to different directory or machine.</p>
+
+<p>For FMI 2.0 FMUs that support both model exchange and co-simulation the interface type can be selected.</p>
+
+<h2>Variables &amp; Start Values</h2>
+
+<p><img src="images/variables.png" alt="Variables Tab" /></p>
+
+<p>The <strong>Variables</strong> tab shows all variables of the FMU.
+Input variables are marked with an arrow on the left, output variables with an arrow on the right of the icon.</p>
+
+<p>The start value, unit and description of the variable (if provided) are displayed in the <strong>Start</strong>, <strong>Unit</strong> and <strong>Description</strong> columns.</p>
+
+<p>To change the start value of a variable click into the respective field in the <strong>Start</strong> column and enter an expression that evaluates to the respective type of variable. Changed start values are indicated by <strong>bold</strong> text. To reset the start value to its default simply clear the <strong>Start</strong> field.</p>
+
+<table>
+<thead>
+<tr>
+  <th>Variable Type</th>
+  <th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Float</td>
+  <td><code>2*pi</code></td>
+</tr>
+<tr>
+  <td>Integer</td>
+  <td><code>-11</code></td>
+</tr>
+<tr>
+  <td>Boolean</td>
+  <td><code>true</code></td>
+</tr>
+<tr>
+  <td>Enumeration</td>
+  <td><code>3</code></td>
+</tr>
+<tr>
+  <td>String</td>
+  <td><code>'C:\Temp\Resources'</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>To get the start value for the variable <code>step</code> for the current block in MATLAB enter</p>
+
+<pre><code>step = FMIKit.getStartValue(gcb, 'step')
+</code></pre>
+
+<p>to set the start value enter</p>
+
+<pre><code>FMIKit.setStartValue(gcb, 'step', 'true')
+</code></pre>
+
+<h2>Output Ports</h2>
+
+<p><img src="images/output_ports.png" alt="Output Ports Tab" /></p>
+
+<p>By default the block has the output ports defined by the FMU.</p>
+
+<ul>
+<li>to add a single variable as an output port double-click it in the left view</li>
+<li>to add multiple variables as scalar output ports select the variables in the left view and click <strong>+ Scalar</strong></li>
+<li>to add multiple variables as a vector output port select the variables in the left view and click <strong>+ Vector</strong></li>
+<li>to remove output ports select the ports in the right view and click <strong>-</strong></li>
+<li>to move an item in the right view select it and use the up and down buttons</li>
+<li>to restore the default output ports click the reset button</li>
+</ul>
+
+<h2>Advanced Settings</h2>
+
+<p>On the advanced tap you can change additional settings for the FMU block</p>
+
+<p><img src="images/advanced.png" alt="Advanced Tab" /></p>
+
+<h3>Unzip Directory</h3>
+
+<p>The folder where the FMU is extracted. The path can be absolute or relative to the model file. To use a custom path change this field before loading an FMU.</p>
+
+<h3>Sample Time</h3>
+
+<p>The sample time for the FMU block (use <code>0</code> for continuous and <code>-1</code> for inherited).</p>
+
+<h3>Relative Tolerance</h3>
+
+<p>The relative tolerance for a Co-Simulation FMU (use <code>0</code> for the default tolerance).
+For Model Exchange FMUs the relative tolerance is the value of <code>RelTol</code> for variable step and <code>0</code> for fixed step solvers.</p>
+
+<h3>Log Level</h3>
+
+<p>The lowest status code that is logged.</p>
+
+<h3>Log File</h3>
+
+<p>Redirect the log messages to this file if <code>Log to File</code> is checked.</p>
+
+<h3>Enable Debug Logging</h3>
+
+<p>Enable the FMU's debug logging.</p>
+
+<h3>Log FMI calls</h3>
+
+<p>Log all FMI calls to the FMU.</p>
+
+<h3>Use Source Code</h3>
+
+<p>If checked a source S-function <code>sfun_&lt;model_name&gt;.c</code> is generated from the FMU's source code which gets automatically compiled when the <code>Apply</code> or <code>OK</code> button is clicked. For FMI 1.0 this feature is only available for FMUs generated with Dymola 2016 or later.</p>
+
+<p>With source code FMUs it is also possible to use FMUs in Rapid Accelerator mode and create target code for RSIM, GRT, ds1005, ds1006 Scalexio platforms.</p>
+
+<h2>MATLAB Commands</h2>
+
+<h3>Get the Model Description</h3>
+
+<p>Use <code>FMIKit.getModelDescription()</code> to retrieve information about an FMU without loading or extracting it.</p>
+
+<pre><code>md = FMIKit.getModelDescription('BooleanNetwork1.fmu')
+</code></pre>
+
+<h3>Get Start Values</h3>
+
+<p>Use <code>FMIKit.getStartValue()</code> to get the start values of an FMUs variables:</p>
+
+<pre><code>step = FMIKit.getStartValue(gcb, 'step')
+</code></pre>
+
+<h3>Set Start Values</h3>
+
+<p>To set the start values for one or more variables use <code>FMIKit.setStartValue()</code>.</p>
+
+<pre><code>FMIKit.setStartValue(gcb, 'step', true, 'y', 'sqrt(2)')
+</code></pre>
+
+<p>sets the start value of variable <code>step</code> to <code>true</code> and <code>y</code> to <code>sqrt(2)</code>. Start values can be <code>logical</code>, <code>double</code>, <code>int32</code> or expressions.</p>
+
+<pre><code>FMIKit.setStartValue(gcb, 'step', [])
+</code></pre>
+
+<p>resets the start value of variable <code>step</code> to its default start value.</p>
+
+<pre><code>FMIKit.setStartValue(gcb, 'u', [1 2 3]')
+</code></pre>
+
+<p>sets the variables <code>u[1] = 1</code>, <code>u[2] = 2</code> and <code>u[3] = 3</code>.</p>
+
+<pre><code>FMIKit.setStartValue(gcb, 'table', [1 2 3; 4 5 6])
+</code></pre>
+
+<p>sets the variables <code>table[1,1] = 1</code> ... <code>table[2,3] = 6</code>.</p>
+
+<h3>Load FMUs</h3>
+
+<p>With <code>FMIKit.loadFMU()</code> an FMU can be (re)loaded by the FMU block.</p>
+
+<pre><code>FMIKit.loadFMU(gcb, 'Controller.fmu')
+</code></pre>
+
+<p>loads the FMU <code>Controller.fmu</code> into the current FMU block.</p>
+
+<h3>Change the Interface Type</h3>
+
+<p>The Interface Type of the FMU block can be changed with</p>
+
+<pre><code>FMIKit.setInterfaceType(gcb, 'CoSimulation');
+</code></pre>
+
+<h3>Change the Output Ports</h3>
+
+<p>Use <code>FMIKit.setOutputPorts()</code> to change the output ports of an FMU block.
+The following commands add the variable <code>x</code> as a <code>1x1</code> output port <code>out1</code> and the variables <code>y1</code> and <code>y2</code> as a <code>2x1</code> output port <code>out2</code> to the current block.</p>
+
+<pre><code>ports.label = 'out1';
+ports.variables = { 'x' };
+ports(2).label = 'out2';
+ports(2).variables = { 'y1', 'y2' };
+
+FMIKit.setOutputPorts(gcb, ports)
+</code></pre>
+
+<h3>Use Source Code</h3>
+
+<p>Use <code>FMIKit.setSourceCode()</code> to use FMU's source code (if available):</p>
+
+<pre><code>FMIKit.setSourceCode(gcb, true)
+</code></pre>
+
+<h3>Set the Relative Tolerance</h3>
+
+<p>Use <code>FMIKit.setRelativeTolerance()</code> to set the relative tolerance for the embedded solver of a Co-Simulation FMU:</p>
+
+<pre><code>FMIKit.setRelativeTolerance(gcb, '1e-3')
+</code></pre>
+
+<h2>Calling sequence</h2>
+
+<p>The S-function <code>sfun_fmurun</code> associated to the <code>FMU</code> block loads and connects the FMU to <a href="https://www.mathworks.com/help/simulink/sfg/how-the-simulink-engine-interacts-with-c-s-functions.html">Simulink's simulation loop</a> by setting its inputs and retrieving its outputs.
+The S-function's <code>mdl*</code> callbacks in which the respective FMI functions are called depend on the interface type of the FMU and are described below.</p>
+
+<h3>Co-Simulation calling sequence</h3>
+
+<p>For Co-Simulation all input variables are set in <a href="https://www.mathworks.com/help/simulink/sfg/mdlupdate.html">mdlUpdate</a> and all output variables are retrieved in <a href="https://www.mathworks.com/help/simulink/sfg/mdloutputs.html">mdlOutputs</a>.
+<a href="https://www.mathworks.com/help/simulink/sfg/sssetinputportdirectfeedthrough.html">Direct feedthrough</a> is disabled for all input ports.</p>
+
+<h3>Model Exchange calling sequence</h3>
+
+<p>For Model Exchange direct feedthrough is enabled for an input port if any output variable declares a dependency on the corresponding input variable in the <code>&lt;ModelStructrue&gt;</code>.
+If any internal variable is added to the outputs of the FMU block direct feedthrough is enabled for all input ports.
+Input variables with <a href="https://www.mathworks.com/help/simulink/sfg/sssetinputportdirectfeedthrough.html">direct feedthrough</a> enabled are set in <a href="https://www.mathworks.com/help/simulink/sfg/mdlderivatives.html?searchHighlight=mdlDerivatives">mdlDerivatives</a>, <a href="https://www.mathworks.com/help/simulink/sfg/mdlzerocrossings.html">mdlZeroCrossings</a> and  <a href="https://www.mathworks.com/help/simulink/sfg/mdloutputs.html">mdlOutputs</a>.
+In <a href="https://www.mathworks.com/help/simulink/sfg/mdlupdate.html">mdlUpdate</a> all input variables are set.</p>
+
+<h2>UserData struct</h2>
+
+<p>The information from the block dialog is stored in the parameter <code>UserData</code> of the FMU block:</p>
+
+<pre><code>&gt;&gt; ud = get_param(gcb, 'UserData')
+
+ud =
+
+      fmiKitVersion: '2.4'
+            fmuFile: 'Rectifier.fmu'
+    fmuLastModified: 1.5548e+12
+     unzipDirectory: 'Rectifier'
+          runAsKind: 1
+         sampleTime: '-1'
+         inputPorts: [0x0 struct]
+        outputPorts: [1x4 struct]
+        startValues: [0x1 containers.Map]
+       debugLogging: 0
+   errorDiagnostics: 'ignore'
+      useSourceCode: 0
+       setBlockName: 0
+       functionName: 'sfun_fmurun'
+         parameters: [1x252 char]
+
+&gt;&gt; ud.outputPorts(2)
+
+ans =
+
+        label: 'iAC'
+    variables: {'iAC[1]'  'iAC[2]'  'iAC[3]'}
+</code></pre>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>fmiKitVersion</code></td>
+  <td><code>char</code></td>
+  <td>FMI Kit version that imported the FMU</td>
+</tr>
+<tr>
+  <td><code>fmuFile</code></td>
+  <td><code>char</code></td>
+  <td>Path to the imported FMU</td>
+</tr>
+<tr>
+  <td><code>fmuLastModified</code></td>
+  <td><code>double</code></td>
+  <td>Last modification data of the FMU</td>
+</tr>
+<tr>
+  <td><code>unzipDirectory</code></td>
+  <td><code>char</code></td>
+  <td>Path to the extracted FMU</td>
+</tr>
+<tr>
+  <td><code>runAsKind</code></td>
+  <td><code>int</code></td>
+  <td>The FMI Type of the FMU (0 = Model Exchange, 1 = Co-Simuliation)</td>
+</tr>
+<tr>
+  <td><code>sampleTime</code></td>
+  <td><code>char</code></td>
+  <td>The sample time of the block</td>
+</tr>
+<tr>
+  <td><code>relativeTolerance</code></td>
+  <td><code>char</code></td>
+  <td>Relative tolerance for the solver of co-simulation FMUs</td>
+</tr>
+<tr>
+  <td><code>inputPorts</code></td>
+  <td><code>struct</code></td>
+  <td>Struct that holds the input ports and associated variables</td>
+</tr>
+<tr>
+  <td><code>outputPorts</code></td>
+  <td><code>struct</code></td>
+  <td>Struct that holds the output ports and associated variables</td>
+</tr>
+<tr>
+  <td><code>startValues</code></td>
+  <td><code>containers.Map</code></td>
+  <td>Map of variable names -> start values</td>
+</tr>
+<tr>
+  <td><code>debugLogging</code></td>
+  <td><code>bool</code></td>
+  <td>Enable debug logging on the FMU instance</td>
+</tr>
+<tr>
+  <td><code>errorDiagnostics</code></td>
+  <td><code>char</code></td>
+  <td>Diagnostics level ('ignore', 'warning', 'error')</td>
+</tr>
+<tr>
+  <td><code>useSourceCode</code></td>
+  <td><code>bool</code></td>
+  <td>Compile the FMU from source code</td>
+</tr>
+<tr>
+  <td><code>functionName</code></td>
+  <td><code>char</code></td>
+  <td>Name of the S-function</td>
+</tr>
+<tr>
+  <td><code>parameters</code></td>
+  <td><code>char</code></td>
+  <td>Parameters for the S-function</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

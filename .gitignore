@@ -2,3 +2,5 @@
 *.slxc
 slprj/
 .DS_Store
+~$*
+**/misc_calcs.m

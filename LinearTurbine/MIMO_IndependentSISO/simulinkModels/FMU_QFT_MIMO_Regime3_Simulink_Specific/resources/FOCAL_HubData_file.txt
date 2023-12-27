@@ -1,0 +1,24 @@
+// Hub model data - FOCAL
+
+// ==============================================================
+// "Geometric properties"
+// ==============================================================
+D_hub 		= 11.06; 		// Diameter of hub 										[	m	 ]
+D_animation = 11.06;
+r_x			=-1.75; 		// Distance from frame a to b in x direction (length)	[   m    ]
+r_y			= 0.00;    		// Distance from frame a to b in y direction			[   m    ]
+r_z			= 0.00;    		// Distance from frame a to b in z direction			[   m    ]
+r_cm_x		= 0.00;  		// C.o.M location from frame a in x direction			[   m    ]
+r_cm_y		= 0.00;  		// C.o.M location from frame a in y direction			[   m    ]
+r_cm_z		= 0.00;  		// C.o.M location from frame a in z direction			[   m    ]
+
+// ==============================================================
+// "Inertial properties"
+// ==============================================================
+m_hub		= 442573;  		// Mass of the hub										[   kg   ] // Updated
+I_xx_hub	= 7.3413e6; 	// Hub 2nd mass moment of inertia w.r.t x axis			[ kg.m^2 ] // Updated
+I_yy_hub	= 0.5*7.3413e6; // Hub 2nd mass moment of inertia w.r.t y axis			[ kg.m^2 ] // Updated
+I_zz_hub	= 0.5*7.3413e6; // Hub 2nd mass moment of inertia w.r.t z axis			[ kg.m^2 ] // Updated
+
+// *** NOTE:
+// 		Parameters with 1e-12 are NOT used within the model definition

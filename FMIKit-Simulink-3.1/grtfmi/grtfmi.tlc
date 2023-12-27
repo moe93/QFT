@@ -1,0 +1,181 @@
+%% SYSTLC: FMU based on GRT (Functional Mock-up Unit) \
+%%    TMF: none MAKE: make_rtw EXTMODE: no_ext_comm
+%%
+%selectfile NULL_FILE
+
+%assign TargetType = "RT"
+%assign Language   = "C"
+%assign GenRTModel = 1
+%assign _GRT_      = 1
+%assign TargetRegistMutexOp   = 1 
+%assign TargetRegistSynchroOp = 1
+
+%include "codegenentry.tlc"
+%assign GUID = FEVAL("grtfmi_generate_guid")
+%include "grtfmilib.tlc"
+%include "grtfmixml.tlc"
+
+%if FMIVersion == "3" && SourceCodeFMU
+  %include "grtfmibd.tlc"
+%endif
+
+%% The contents between 'BEGIN_RTW_OPTIONS' and 'END_RTW_OPTIONS' in this file
+%% are used to maintain backward compatibility to R13 and preR13 custom target 
+%% file only.
+%%
+/%
+  BEGIN_RTW_OPTIONS
+
+  i = 1;
+  rtwoptions(i).prompt        = 'FMI';
+  rtwoptions(i).type          = 'Category';
+  rtwoptions(i).enable        = 'on';
+  rtwoptions(i).default       = 5;   % number of items under this category
+                                     % excluding this one.
+  rtwoptions(i).popupstrings  = '';  % At the first item, user has to 
+  rtwoptions(i).tlcvariable   = '';  % initialize all supported fields
+  rtwoptions(i).tooltip       = '';
+  rtwoptions(i).callback      = '';
+  rtwoptions(i).makevariable  = '';
+
+  i = i + 1;
+  rtwoptions(i).prompt         = 'FMI version';
+  rtwoptions(i).type           = 'Popup';
+  rtwoptions(i).default        = '2';
+  rtwoptions(i).tlcvariable    = 'FMIVersion';
+  rtwoptions(i).popupstrings   = '2|3';
+  rtwoptions(i).tooltip        = 'FMI version';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Visible parameters';
+  rtwoptions(i).type          = 'Edit';
+  rtwoptions(i).default       = '';
+  rtwoptions(i).tlcvariable   = 'VisibleParameters';
+  rtwoptions(i).tooltip       = 'Parameters to include in the model description (leave empty to include all)';
+
+  i = i + 1;
+  rtwoptions(i).prompt         = 'Model author';
+  rtwoptions(i).type           = 'Edit';
+  rtwoptions(i).default        = getenv('username');
+  rtwoptions(i).tlcvariable    = 'ModelAuthor';
+  rtwoptions(i).makevariable   = '';
+  rtwoptions(i).tooltip        = ...
+    'Model author to be written to the model description';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Template directory';
+  rtwoptions(i).type          = 'Edit';
+  rtwoptions(i).default       = '';
+  rtwoptions(i).tlcvariable   = 'FMUTemplateDir';
+  rtwoptions(i).tooltip       = ...
+    'Template directory with files and folders to be added to the FMU';
+
+  i = i + 1;
+  rtwoptions(i).prompt         = 'Add image of Simulink model';
+  rtwoptions(i).type           = 'Checkbox';
+  rtwoptions(i).default        = 'on';
+  rtwoptions(i).tlcvariable    = 'AddModelImage';
+  rtwoptions(i).makevariable   = '';
+  rtwoptions(i).tooltip        = ...
+    'Add an image of the Simulink model to the FMU (model.png)';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Include sources in FMU';
+  rtwoptions(i).type          = 'Checkbox';
+  rtwoptions(i).default       = 'off';
+  rtwoptions(i).tlcvariable   = 'SourceCodeFMU';
+  rtwoptions(i).tooltip       = 'Add model sources to FMU';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Include block outputs';
+  rtwoptions(i).type          = 'Checkbox';
+  rtwoptions(i).default       = 'off';
+  rtwoptions(i).tlcvariable   = 'IncludeBlockOutputs';
+  rtwoptions(i).tooltip       = 'Include global block outputs in the model description';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'CMake';
+  rtwoptions(i).type          = 'Category';
+  rtwoptions(i).enable        = 'on';
+  rtwoptions(i).default       = 4;   % number of items under this category
+                                     % excluding this one.
+  rtwoptions(i).popupstrings  = '';  % At the first item, user has to 
+  rtwoptions(i).tlcvariable   = '';  % initialize all supported fields
+  rtwoptions(i).tooltip       = '';
+  rtwoptions(i).callback      = '';
+  rtwoptions(i).makevariable  = '';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'CMake command';
+  rtwoptions(i).type          = 'Edit';
+  rtwoptions(i).default       = '';
+  rtwoptions(i).tlcvariable   = 'CMakeCommand';
+  rtwoptions(i).tooltip       = 'CMake command or path the executable (leave empty for default command)';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'CMake generator';
+  rtwoptions(i).type          = 'Popup';
+  rtwoptions(i).default       = grtfmi_cmake_default_generator();
+  rtwoptions(i).popupstrings  = grtfmi_cmake_generators();
+  rtwoptions(i).tlcvariable   = 'CMakeGenerator';
+  rtwoptions(i).tooltip       = 'CMake generator to build the shared library';
+
+  if ispc
+    i = i + 1;
+    rtwoptions(i).prompt        = 'CMake generator platform';
+    rtwoptions(i).type          = 'Popup';
+    rtwoptions(i).default       = 'x64';
+    rtwoptions(i).popupstrings  = 'Win32|x64';
+    rtwoptions(i).tlcvariable   = 'CMakeGeneratorPlatform';
+    rtwoptions(i).tooltip       = 'CMake generator platform to build the shared library';
+  end
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Toolset';
+  rtwoptions(i).type          = 'Edit';
+  rtwoptions(i).default       = '';
+  rtwoptions(i).tlcvariable   = 'CMakeToolset';
+  rtwoptions(i).tooltip       = 'CMake toolset specification (optional)';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Build configuration';
+  rtwoptions(i).type          = 'Popup';
+  rtwoptions(i).default       = 'Release';
+  rtwoptions(i).popupstrings  = ['Debug|' ...
+                                'Release|' ...
+                                'MinSizeRel|' ...
+                                'RelWithDebInfo'];
+  rtwoptions(i).tlcvariable   = 'CMakeBuildConfiguration';
+  rtwoptions(i).tooltip       = 'CMake build configuration';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Compiler optimization level';
+  rtwoptions(i).type          = 'Popup';
+  rtwoptions(i).default       = 'Disabled';
+  rtwoptions(i).popupstrings  = ['Disabled|' ...
+                                'Minimize size|' ...
+                                'Maximize speed|' ...
+                                'Full optimization|' ...
+                                'Custom'];
+  rtwoptions(i).tlcvariable   = 'CMakeCompilerOptimizationLevel';
+  rtwoptions(i).tooltip       = 'Compiler optimization level';
+
+  i = i + 1;
+  rtwoptions(i).prompt        = 'Custom compiler optimization flags';
+  rtwoptions(i).type          = 'Edit';
+  rtwoptions(i).default       = '';
+  rtwoptions(i).tlcvariable   = 'CMakeCompilerOptimizationFlags';
+  rtwoptions(i).tooltip       = 'Custom compiler optimization flags';
+
+  %----------------------------------------%
+  % Configure code generation settings %
+  %----------------------------------------%
+  
+  rtwgensettings.BuildDirSuffix = '_grt_fmi_rtw';
+  rtwgensettings.DerivedFrom    = 'grt.tlc';
+  rtwgensettings.Version        = '1';
+
+  rtwgensettings.SelectCallback = 'grtfmi_selectcallback(hDlg, hSrc)';
+  
+  END_RTW_OPTIONS 
+ %/

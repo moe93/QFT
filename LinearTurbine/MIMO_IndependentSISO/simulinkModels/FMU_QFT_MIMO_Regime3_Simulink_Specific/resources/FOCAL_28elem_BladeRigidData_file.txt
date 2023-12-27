@@ -1,0 +1,15 @@
+// Focal Blade data
+
+// Global params
+B			= 3;		// Number of blades									[    -    ]
+S_blade		= 115.9;	// Total span of blade ~(turbine radius-hub)		[    m    ]
+N 			= 28;		// Number of elements 								[    -    ]
+m			= 8.081e4; 	// Mass of blade									[    kg   ] // Updated
+blade_cm	= 3.773e1;	// Blade C.M. w.r.t root along axis					[    m    ] // Updated
+I_xx		= 1.95e8;	// Blade inertia w.r.t root							[  kg.m^2 ] // Updated
+I_yy		= 2.02e8;	// Blade inertia w.r.t root							[  kg.m^2 ] // Updated
+I_zz		= 1.48e7;	// Blade inertia w.r.t root							[  kg.m^2 ] // Updated
+
+// Flapwise rotational spring-damper constants
+flap_Revolute_spring	= 2.62e7; 	// Flapwise rotational spring constant 	[ N.m/rad ]
+flap_Revolute_damper	= 1.79e7; 	// Flapwise rotational damper constant	[N.m.s/rad]

@@ -1,0 +1,290 @@
+<html>
+<head>
+	<title>FMU Export</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<h1>FMU Export</h1>
+
+<p>FMI Kit provides two Simulink Coder targets to export Simulink models as FMUs:</p>
+
+<ul>
+<li><code>grtfmi.tlc</code> (based on the Generic Real-Time target)</li>
+<li><code>rtwsfcnfmi.tlc</code> (based on the S-function target)</li>
+</ul>
+
+<p>The table below gives an overview of the different capabilities:</p>
+
+<table>
+<thead>
+<tr>
+  <th></th>
+  <th style="text-align:center;">GRT</th>
+  <th style="text-align:center;">S-Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Model References</td>
+  <td style="text-align:center;">yes</td>
+  <td style="text-align:center;">no</td>
+</tr>
+<tr>
+  <td>Source Code</td>
+  <td style="text-align:center;">yes</td>
+  <td style="text-align:center;">no</td>
+</tr>
+<tr>
+  <td>Co-Simulation</td>
+  <td style="text-align:center;">yes</td>
+  <td style="text-align:center;">yes</td>
+</tr>
+<tr>
+  <td>Model Exchange</td>
+  <td style="text-align:center;">no</td>
+  <td style="text-align:center;">yes</td>
+</tr>
+<tr>
+  <td>Requires CMake</td>
+  <td style="text-align:center;">yes</td>
+  <td style="text-align:center;">yes</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Which target should I use?</strong></p>
+
+<p>Use <code>grtfmi.tlc</code> unless you...</p>
+
+<ul>
+<li>can't use a fixed-step solver</li>
+<li>need a Model Exchange FMU</li>
+<li>have to use binary S-functions</li>
+</ul>
+
+<p><strong>Supported compilers</strong></p>
+
+<p><code>Windows</code>: Visual Studio 2015 and later</p>
+
+<p><code>Linux</code>: GCC</p>
+
+<p><code>macOS</code>: clang</p>
+
+<h2>Exporting an FMU</h2>
+
+<p>To export a Simulink model as an FMU</p>
+
+<ul>
+<li>open the model to export (e.g. type <code>f14</code> in the command window)</li>
+<li>add external inputs and outputs (optional)</li>
+<li>open <strong>Simulation &gt; Model Configuration Parameters</strong> (CTRL+E)</li>
+<li>under <strong>Solver &gt; Type</strong> select <strong>Fixed-step</strong> for a Co-Simulation FMU or <strong>Variable-step</strong> for a Model Exchange FMU</li>
+<li>under <strong>Code Generation &gt; System target file</strong> click <strong>Browse</strong> and select <strong>grtfmi.tlc</strong> for a Generic Real-Time based FMU or <strong>rtwsfcnfmi.tlc</strong> for an S-function based FMU</li>
+<li>under <strong>Code Generation &gt; CMake</strong> select the <strong>CMake generator</strong> for your toolchain</li>
+<li>apply the <strong>Model Configuration Parameters</strong> dialog</li>
+<li>select <strong>Code &gt; C/C++ Code &gt; Build Model</strong> (CTRL+B) to export the FMU to the current working directory</li>
+</ul>
+
+<p><img src="images/coder_target.png" alt="Coder target" /></p>
+
+<h2>Generic Real-Time Target based FMU</h2>
+
+<p>The <code>grtfmi.tlc</code> target has the following options under <strong>Simulation &gt; Model Configuration Parameters &gt; FMI</strong>:</p>
+
+<table>
+<thead>
+<tr>
+  <th>Parameter</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>FMI version</td>
+  <td>FMI version of the FMU</td>
+</tr>
+<tr>
+  <td>Visible parameters</td>
+  <td>Parameters to include in the model description (leave empty to include all)</td>
+</tr>
+<tr>
+  <td>Model author</td>
+  <td>Model author to be written to the model description</td>
+</tr>
+<tr>
+  <td>Template directory</td>
+  <td>Template directory with files and folders to be added to the FMU</td>
+</tr>
+<tr>
+  <td>Add image of Simulink model</td>
+  <td>Add an image of the Simulink model to the FMU (model.png)</td>
+</tr>
+<tr>
+  <td>Include sources in FMU</td>
+  <td>Add model sources to FMU</td>
+</tr>
+<tr>
+  <td>Include block outputs</td>
+  <td>Include global block outputs in the model description</td>
+</tr>
+</tbody>
+</table>
+
+<p>and under <strong>Simulation &gt; Model Configuration Parameters &gt; CMake</strong>:</p>
+
+<table>
+<thead>
+<tr>
+  <th>Parameter</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>CMake command</td>
+  <td>CMake command or path the executable (leave empty for default command)</td>
+</tr>
+<tr>
+  <td>CMake generator</td>
+  <td>CMake generator to build the shared library</td>
+</tr>
+<tr>
+  <td>Toolset</td>
+  <td>CMake toolset specification (optional)</td>
+</tr>
+<tr>
+  <td>Build configuration</td>
+  <td>CMake build configuration</td>
+</tr>
+<tr>
+  <td>Compiler optimization level</td>
+  <td>Compiler optimization level</td>
+</tr>
+<tr>
+  <td>Custom compiler optimization flags</td>
+  <td>Custom compiler optimization flags</td>
+</tr>
+</tbody>
+</table>
+
+<p>Example of a template folder:</p>
+
+<pre><code>+ binaries
+  + win64
+    - Solver.dll
++ documentation
+  - index.html
+  + licenses
+    - license.txt
++ resources
+  - table.dat
+</code></pre>
+
+<p>Note that only files under <code>binaries</code>, <code>documentation</code>, <code>resources</code>, and <code>sources</code> will be added to the FMU archive.</p>
+
+<h2>S-Function based FMU</h2>
+
+<p>The <code>rtwsfcnfmi.tlc</code> target has the following options under <strong>Simulation &gt; Model Configuration Parameters &gt; FMI</strong>:</p>
+
+<table>
+<thead>
+<tr>
+  <th>Parameter</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>FMI version</td>
+  <td>FMI version of the FMU</td>
+</tr>
+<tr>
+  <td>FMI type</td>
+  <td>specifies FMI type (ModelExchange or CoSimulation)</td>
+</tr>
+<tr>
+  <td>Visible parameters</td>
+  <td>Parameters to include in the model description (leave empty to include all)</td>
+</tr>
+<tr>
+  <td>Model author</td>
+  <td>Model author to be written to the model description</td>
+</tr>
+<tr>
+  <td>Template directory</td>
+  <td>Template directory with files and folders to be added to the FMU</td>
+</tr>
+<tr>
+  <td>Include global block outputs</td>
+  <td>selects if block outputs should be included in FMU XML description</td>
+</tr>
+<tr>
+  <td>Add image of Simulink model</td>
+  <td>Add an image of the Simulink model to the FMU (model.png)</td>
+</tr>
+<tr>
+  <td>Load S-functions from binary MEX files</td>
+  <td>selects that S-functions in the model will be loaded from pre-compiled binary MEX files instead of using stand-alone compilation of S-function sources. This option will create dependencies on MATLAB binaries, which are not included in the exported FMU. On Windows, the FMU will by default try to load these from the bin directory of the exporting MATLAB installation. The environment variable <code>SFCN_FMI_MATLAB_BIN</code> can be used to specify a different directory from where to load the MATLAB binaries (for example a MATLAB run-time installation). On Linux, it is required to use the environment variable <code>LD_LIBRARY_PATH</code> to specify the path to the MATLAB binaries. The S-function MEX files used by the model are copied to <code>/resources/SFunctions</code> of the FMU and are loaded automatically when the FMU is instantiated.</td>
+</tr>
+</tbody>
+</table>
+
+<p>and under <strong>Simulation &gt; Model Configuration Parameters &gt; CMake</strong>:</p>
+
+<table>
+<thead>
+<tr>
+  <th>Parameter</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>CMake command</td>
+  <td>CMake command or path the executable (leave empty for default command)</td>
+</tr>
+<tr>
+  <td>CMake generator</td>
+  <td>CMake generator to build the shared library</td>
+</tr>
+<tr>
+  <td>Toolset</td>
+  <td>CMake toolset specification (optional)</td>
+</tr>
+<tr>
+  <td>Build configuration</td>
+  <td>CMake build configuration</td>
+</tr>
+<tr>
+  <td>Compiler optimization level</td>
+  <td>Compiler optimization level</td>
+</tr>
+<tr>
+  <td>Custom compiler optimization flags</td>
+  <td>Custom compiler optimization flags</td>
+</tr>
+</tbody>
+</table>
+
+<p>It is recommended to set the <strong>Tasking mode</strong> to <strong>SingleTasking</strong>.</p>
+
+<h3>Limitations and Trouble-Shooting</h3>
+
+<ul>
+<li><p>The FMU is compiled with dynamic loading of the C run-time on Windows.
+This may require installation of corresponding Visual Studio redistributables on the target system.</p></li>
+<li><p>The option <code>Include block hierarchy in variable names</code> could in very rare cases give rise to name conflicts in the XML variable names.
+For example, any special characters in Simulink block names will be converted to underscore which may lead to name conflicts.
+It is recommended to avoid using special characters in block names with this option (carriage return and space are safe to use).</p></li>
+<li><p>The variable names for continuous-time states, discrete states, parameters, and block outputs are separated in the top-level categories <code>ContStates</code>,
+<code>DiscStates</code>, <code>Parameters</code>, and <code>BlockOutputs</code> in the structured view.
+This is to ensure unique variable names in the FMU XML file, since variable names from different categories are not guaranteed to be unique within a block.
+In the flat view, the variable names are appended with <code>_xc</code>, <code>_xd</code>, <code>_pm</code> and <code>_wb</code> respectively.</p></li>
+<li><p>For multiple instances of conditionally executed non-virtual subsystems or Stateflow charts, it is required to select <code>Treat as atomic unit</code> and set <code>Function packaging</code> to <code>Inline</code> for the subsystems/charts.</p></li>
+<li><p>S-functions in the exported model are not allowed to call into the MATLAB environment, e.g. using <code>mexCallMATLAB</code> or <code>mexEvalString</code>.</p></li>
+<li><p>The FMU export target is not model reference compliant.</p></li>
+<li><p>The package is subject to the same limitations as the standard S-Function target.</p></li>
+</ul>
+
+</body>
+</html>

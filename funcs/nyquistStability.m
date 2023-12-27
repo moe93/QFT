@@ -376,12 +376,33 @@ if( DEBUG )
     disp( '======================================' );
     disp( '=========== DEBUG __ START ===========' );
     disp( '======================================' );
-    fprintf( "\tDelta      = %6.3f\n",  leftRightAt0        );  % +ve if Lw goes initially to the left
-    fprintf( "\tDC Gain    = %6.3f\n",  dcgainLN            );
-    fprintf( "\t∠ L(w0)    = %6.3f\n",  phaseL0             );
-    fprintf( "\t∠ L(w1)    = %6.3f\n",  phaseL1             );
-    fprintf( "\tnumZP      = %6.3f\n",  numZP               );
-    fprintf( "\tmax(numZP) = %6.3f\n",  max(abs(numZP), 1)  );
+    if( exist('leftRightAt0', 'var') )
+        fprintf( "\tDelta      = %6.3f\n",  leftRightAt0        );  % +ve if Lw goes initially to the left
+    else
+        fprintf( "\tDelta      = D.N.E\n"                       );
+    end
+    if( exist('dcgainLN', 'var') )
+        fprintf( "\tDC Gain    = %6.3f\n",  dcgainLN            );
+    else
+        fprintf( "\tDC Gain    = D.N.E\n"                       );
+    end
+    if( exist('phaseL0', 'var') )
+        fprintf( "\t∠ L(w0)    = %6.3f\n",  phaseL0             );
+    else
+        fprintf( "\t∠ L(w0)    = D.N.E\n"                       );
+    end
+    if( exist('phaseL1', 'var') )
+        fprintf( "\t∠ L(w1)    = %6.3f\n",  phaseL1             );
+    else
+        fprintf( "\t∠ L(w1)    = D.N.E\n"                       );
+    end
+    if( exist('numZP', 'var') )
+        fprintf( "\tnumZP      = %6.3f\n",  numZP               );
+        fprintf( "\tmax(numZP) = %6.3f\n",  max(abs(numZP), 1)  );
+    else
+        fprintf( "\tnumZP      = D.N.E\n"                       );
+        fprintf( "\tmax(numZP) = D.N.E\n"                       );
+    end
     disp( '======================================' );
     disp( '============ DEBUG __ END ============' );
     disp( '======================================' );

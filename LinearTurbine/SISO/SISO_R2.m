@@ -9,6 +9,9 @@
 %   Aug. 20th, 2023
 %       - Initial script
 %
+%   Oct.  3rd, 2023
+%       - Better handling of path generation
+%
 
 %% Setup environment
 clear all; close all; clc;
@@ -58,6 +61,23 @@ end
 
 % Add QFT2 to path
 addpath( genpath(src) );
+
+% --- Controllers and pre-filter directories
+scriptName      = mfilename;
+scriptDir       = mfilename( 'fullpath' );
+scriptPathParts = strsplit( scriptDir, filesep );
+ctrlSrc         = fullfile( scriptPathParts{1:end-1}, 'controllerDesigns' );
+figDir          = fullfile( scriptPathParts{1:end-1}, 'figs', scriptName );
+
+if( isunix )
+    ctrlSrc = [ filesep ctrlSrc ];
+    figDir  = [ filesep figDir  ];
+end
+
+% --- Directory where QFT generated controllers are stored
+dirG = fullfile( ctrlSrc, 'R2', 'G' );
+dirF = fullfile( ctrlSrc, 'R2', 'F' );
+
 
 %% Read A, B, C, D matrices from linearized model
 data_dir    = './data/';
@@ -263,8 +283,6 @@ P0_11 = P11( 1, 1, nompt );
 % --- Pick one (for now)
 P0 = P0_11;
 P = P11;
-% P0 = P0_12;
-% P = P12;
 
 % [INFO] ...
 fprintf( ACK );
@@ -274,7 +292,7 @@ w = logspace( log10(1e-3), log10(1e1), 1024 );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( P0, w ); grid on;
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'bode' );
 end
 [p0, theta0] = bode( P0, w );
 
@@ -283,7 +301,7 @@ if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     rlocus( P0 );
     title('Root Locus of Plant')
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'rlocus' );
 end
 
 %% Step 3: QFT Template
@@ -311,7 +329,7 @@ if( PLOT )
     title( 'Plant Templates' )
     
     % --- Beautify plot
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'template' );
 end
 
 % [INFO] ...
@@ -358,6 +376,7 @@ fprintf( ACK );
 fprintf( 'Step 5:' );
 fprintf( '\tDefining performance specifications...' );
 
+%%
 % -----------------------------------------------------------------------
 % -- Type 3: Sensitivity or output disturbance rejection specification --
 % -----------------------------------------------------------------------
@@ -389,10 +408,11 @@ del_3   = tf( num, den );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( del_3, min(omega_3):0.001:max(omega_3) );
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'sensitivity_spec' );
 end
 
 
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
@@ -414,9 +434,10 @@ del_4   = tf( num, den );
 if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     bode( del_4, min(omega_4):0.001:max(omega_4) );
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'distReject_spec' );
 end
 
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -468,7 +489,7 @@ if( PLOT )
     figure( CNTR ); CNTR = CNTR + 1;
     step( del_6(1) );   hold on ;  grid on;
     step( del_6(2) );   hold off;
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'refTracking_spec' );
 end
 
 % [INFO] ...
@@ -520,7 +541,7 @@ if( PLOT )
     hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
     set( hLegend, 'location', 'southeast' );    % Access and change location
 
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'stability_bnds' );
 end
 
 % [INFO] ...
@@ -554,12 +575,14 @@ if( PLOT )
     hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
     set( hLegend, 'location', 'south' );    % Access and change location
 
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'sensitivity_bnds' );
 end
 
 % [INFO] ...
 fprintf( ACK );
 
+
+%%
 % --------------------------------------------------------------------
 % ---- Type 4: Disturbance rejection at plant input specification ----
 % --------------------------------------------------------------------
@@ -586,12 +609,14 @@ if( PLOT )
     hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
     set( hLegend, 'location', 'southeast' );    % Access and change location
 
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'distReject_bnds' );
 end
 
 % [INFO] ...
 fprintf( ACK );
 
+
+%%
 % --------------------------------------------------
 % ---- Type 6: Reference tracking specification ----
 % --------------------------------------------------
@@ -618,7 +643,7 @@ if( PLOT )
     hLegend = findobj(gcf, 'Type', 'Legend');   % Get legend property
     set( hLegend, 'location', 'southeast' );    % Access and change location
 
-    make_nice_plot();
+    make_nice_plot( PRNT, figDir, 'refTracking_bnds' );
 end
 
 % [INFO] ...
@@ -637,6 +662,7 @@ bdb = grpbnds( bdb1, bdb2, bdb3, bdb7 );
 if( PLOT )
     plotbnds( bdb ); 
     title( 'All Bounds' );
+    make_nice_plot( PRNT, figDir, 'all_bnds' );
 end
 
 % [INFO] ...
@@ -649,6 +675,7 @@ ubdb = sectbnds(bdb);
 if( PLOT )
     plotbnds( ubdb );
     title( 'Intersection of Bounds' );
+    make_nice_plot( PRNT, figDir, 'intersect_bnds' );
 end
 
 % [INFO] ...
@@ -660,13 +687,10 @@ fprintf( ACK );
 fprintf( 'Step 9:' );
 fprintf( '\tSynthesize G(s)...' );
 
-% --- Directory where QFT generated controllers are stored
-src = './controllerDesigns/';
-
 % --- Controller, G(s)
-% G_file  = [ src 'G_R2_fastResponse.shp' ];
-% G_file  = [ src 'G_R2_mediumResponse.shp' ];
-G_file  = [ src 'G_R2_slowResponse.shp' ];
+% G_file  = fullfile( dirG, 'G_R2_fastResponse.shp' );
+% G_file  = fullfile( dirG, 'G_R2_mediumResponse.shp' );
+G_file  = fullfile( dirG, 'G_R2_slowResponse.shp' );
 if( isfile(G_file) )
     G = getqft( G_file );
 else
@@ -699,12 +723,10 @@ fprintf( ACK );
 fprintf( 'Step 10:' );
 fprintf( '\tSynthesize F(s)...' );
 
-% --- Directory where QFT generated controllers are stored
-src = './controllerDesigns/';
 % --- Pre-filter file, F(s)
-% F_file  = [ src 'F_R2_fastResponse.fsh' ];
-% F_file  = [ src 'F_R2_mediumResponse.fsh' ];
-F_file  = [ src 'F_R2_slowResponse.fsh' ];
+% F_file  = fullfile( dirF, 'F_R2_fastResponse.fsh' );
+% F_file  = fullfile( dirF, 'F_R2_mediumResponse.fsh' );
+F_file  = fullfile( dirF, 'F_R2_slowResponse.fsh' );
 if( isfile(F_file) )
     F = getqft( F_file );
 else
@@ -732,18 +754,21 @@ disp(' ')
 disp('chksiso(1,wl,del_1,P,R,G); %margins spec')
 ind = (min(omega_1) <= wl) & (wl <= max(omega_1));
 chksiso( 1, wl(ind), del_1, P, [], G );
+make_nice_plot( PRNT, figDir, 'stability_bnds_check' );
 % ylim( [0 3.5] );
 
 disp(' ')
 disp('chksiso(2,wl,del_3,P,R,G); %Sensitivity reduction spec')
 ind = (min(omega_3) <= wl) & (wl <= max(omega_3));
 chksiso( 2, wl(ind), del_3, P, [], G );
+make_nice_plot( PRNT, figDir, 'sensitivity_bnds_check' );
 % ylim( [-90 10] );
 
 disp(' ')
 disp('chksiso(3,wl,del_4,P,R,G); %Disturbance at input reduction spec')
 ind = (min(omega_4) <= wl) & (wl <= max(omega_4));
 chksiso( 3, wl(ind), del_4, P, [], G );
+make_nice_plot( PRNT, figDir, 'distReject_bnds_check' );
 % ylim( [-90 10] );
 
 % disp(' ')
@@ -756,17 +781,17 @@ chksiso( 3, wl(ind), del_4, P, [], G );
 % Some variables are manually generated, running this section as-is will
 % result in errors being raised
 
-gain = 1;%15e6/0.791;
-figure();
-impulse( feedback(P0*G*gain, 1) ); grid on; hold on;
-impulse( feedback(P0*GG*gain, 1) ); 
-% impulse( feedback(P0*GGG*15e6/0.791, 1) );
-title( "Impulse response" );
-make_nice_plot();
-
-figure();
-step( feedback(P0*G*gain, 1) ); grid on; hold on;
-step( feedback(P0*GG*gain, 1) );
-% step( feedback(P0*GGG*15e6/0.791, 1) );
-title( "Step Response" );
-make_nice_plot();
+% gain = 1;%15e6/0.791;
+% figure();
+% impulse( feedback(P0*G*gain, 1) ); grid on; hold on;
+% impulse( feedback(P0*GG*gain, 1) ); 
+% % impulse( feedback(P0*GGG*15e6/0.791, 1) );
+% title( "Impulse response" );
+% make_nice_plot();
+% 
+% figure();
+% step( feedback(P0*G*gain, 1) ); grid on; hold on;
+% step( feedback(P0*GG*gain, 1) );
+% % step( feedback(P0*GGG*15e6/0.791, 1) );
+% title( "Step Response" );
+% make_nice_plot();
