@@ -1,6 +1,10 @@
 # QFT
 Quantitative Feedback Theory (QFT) based controller for Floating Offshore Wind Turbines (FOWTs)
 
+## Note on License
+This work is part of my Ph.D. effort in Mechanical Engineering at the University of Central Florida and the topic of my dissertation. Due to the amount of work and the sleepless nights I endured working on this, I would like to say that while the attached license states you may use this work at your own discretion, I, the owner of this repository and sole contributor, do **NOT** grant you any permission to use this work as your own. You may cite me, but you may **NOT** use it as your own work. In addition, this work may **NOT** be used for any patents or commerical work that does not include me.
+What you may do is use this work for educational purposes.
+
 ## About
 This repository is a WIP
 
